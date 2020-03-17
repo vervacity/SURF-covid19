@@ -118,8 +118,7 @@ ui <- shinyUI(
                       ),
                       mainPanel(
                         textOutput("text1"),
-                        plotOutput("plot1",
-                                   hover = hoverOpts(id = "plot_hover")),
+                        plotlyOutput("plot1"),
                         width = 7
                       )
              ),
@@ -366,7 +365,7 @@ server <- function(input, output, session) {
     
   })
   
-  output$plot1 <- renderPlot({
+  output$plot1 <- renderPlotly({
     req(input$county1)
     
     case_numbers <- get_case_numbers()
@@ -382,27 +381,46 @@ server <- function(input, output, session) {
     if (input$only_serious) {
       y_axis <- 'Hospital Patients'
     }
-    plot(Sys.Date() + day_list, critical_cases + severe_cases, type = 'l', col = 'black', lwd = 2,
-         main = paste(paste(input$county1, collapse = ' & \n'), '(Projected)'),
-         xlab = 'Date', ylab = y_axis, ylim = c(0, max(critical_cases + severe_cases)))
-    lines(Sys.Date() + day_list, severe_cases, type = 'l', col = 'blue', lwd = 1.5)
-    lines(Sys.Date() + day_list, critical_cases, type = 'l', col = 'red', lwd=1.5)
-    lines(Sys.Date() + day_list, fatal_cases, type = 'l', col = 'purple', lty = 'dashed', lwd=1)
-    abline(h = num_beds, col = "grey", lty="dashed")
-    text(Sys.Date() + 1/2*n_days, num_beds, "number of \n hospital beds", pos = 3)
-    points(Sys.Date(), input$num_cases, pch = 4)
-    text(Sys.Date(), input$num_cases, labels = input$num_cases, pos = 4)
+    # plot(Sys.Date() + day_list, critical_cases + severe_cases, type = 'l', col = 'black', lwd = 2,
+    #      main = paste(paste(input$county1, collapse = ' & \n'), '(Projected)'),
+    #      xlab = 'Date', ylab = y_axis, ylim = c(0, max(critical_cases + severe_cases)))
+    # lines(Sys.Date() + day_list, severe_cases, type = 'l', col = 'blue', lwd = 1.5)
+    # lines(Sys.Date() + day_list, critical_cases, type = 'l', col = 'red', lwd=1.5)
+    # lines(Sys.Date() + day_list, fatal_cases, type = 'l', col = 'purple', lty = 'dashed', lwd=1)
+    # abline(h = num_beds, col = "grey", lty="dashed")
+    # text(Sys.Date() + 1/2*n_days, num_beds, "number of \n hospital beds", pos = 3)
+    # points(Sys.Date(), input$num_cases, pch = 4)
+    # text(Sys.Date(), input$num_cases, labels = input$num_cases, pos = 4)
+    # 
+    # if (input$submit != 0) {
+    #   dt_changes = get_dt_changes()
+    #   days <- dt_changes[c(FALSE, TRUE)]
+    #   for (i in days) {
+    #     abline(v = Sys.Date() + i, col = "grey", lty = "dashed")
+    #   }
+    # }
+    # 
+    # legend("topleft", c("estimated need \n (critical + severe)", "severe", 'critical', 'fatal (subset of \n critical)'), fill=c('black', 'blue', 'red', 'purple'))
     
-    if (input$submit != 0) {
-      dt_changes = get_dt_changes()
-      days <- dt_changes[c(FALSE, TRUE)]
-      for (i in days) {
-        abline(v = Sys.Date() + i, col = "grey", lty = "dashed")
-      }
-    }
+    chart_data = melt(data.table(
+      date = Sys.Date() + day_list,
+      estimated_hospitalizations = critical_cases + severe_cases,
+      severe_cases = severe_cases,
+      critical_cases = critical_cases,
+      fatal_cases = fatal_cases
+      ), id.vars = c('date'))
+    chart_data[, value := round(value)]
     
-    legend("topleft", c("estimated need \n (critical + severe)", "severe", 'critical', 'fatal (subset of \n critical)'), fill=c('black', 'blue', 'red', 'purple'))
+    gp = ggplot(chart_data,
+      aes(x=date, y=value, color=variable)) +
+      geom_line() +
+      theme_minimal() +
+      ylab("Hospitalizations") +
+      theme(legend.position = c(0, 0)) +
+      geom_hline(yintercept = num_beds) + 
+      coord_cartesian(ylim=c(0, max(critical_cases + severe_cases)))
     
+    ggplotly(gp) %>% layout(legend = list(x = 0))
     
   })
   
