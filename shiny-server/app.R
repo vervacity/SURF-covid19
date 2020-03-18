@@ -34,7 +34,7 @@ df <- read.csv('county_age_severity_rates_v6.csv', stringsAsFactors = FALSE)
 df$County <- gsub('city', 'City', df$County)
 bed_df <- read.csv('Hospitals.csv', stringsAsFactors = FALSE) %>%
   filter(BEDS != -999, STATE != 'PR') %>%
-  select(COUNTYFIPS, COUNTY, BEDS) %>% rename(FIPS = COUNTYFIPS, beds = BEDS)
+  select(COUNTYFIPS, BEDS) %>% rename(FIPS = COUNTYFIPS, beds = BEDS)
 bed_df <- bed_df %>% group_by(FIPS) %>%
   summarize(num_beds = sum(beds)) %>% mutate(FIPS = as.numeric(FIPS))
 df <- left_join(df, bed_df, by = 'FIPS')
@@ -52,25 +52,25 @@ ui <- shinyUI(
                                  hr(),
                                  h4("Baseline"),
                                  numericInput("num_cases", "Current Cases (Today)", 138, min = 1),
-                                 numericInput("num_days", "Number of Days to Project Forward", 50, min = 1),
+                                 numericInput("num_days", "Number of Days to Project Ahead", 50, min = 1),
                                  numericInput("doubling_time", "Doubling Time (Days)", 6, min = 1, max = 20),
                                  hr(),
-                                 h4("Interventions"),
-                                 p("Doubling times (DT) can be changed at up to three time points to reflect interventions."),
+                                 h4("Intervention"),
+                                 p("Doubling times (DT) can be changed to reflect an intervention."),
                                  fluidRow(
                                    column(6, tags$b("On Day")),
                                    column(6, tags$b("New DT"))
                                  ),
                                  fluidRow(
                                    column(6,
-                                          numericInput("day_change_1", "", NA, min = 1),
-                                          numericInput("day_change_2", "", NA, min = 1),
-                                          numericInput("day_change_3", "", NA, min = 1)
+                                          numericInput("day_change_1", "", NA, min = 1) #,
+                                          #numericInput("day_change_2", "", NA, min = 1),
+                                          #numericInput("day_change_3", "", NA, min = 1)
                                    ),
                                    column(6,
-                                          numericInput("double_change_1", "", NA, min = 1),
-                                          numericInput("double_change_2", "", NA, min = 1),
-                                          numericInput("double_change_3", "", NA, min = 1)
+                                          numericInput("double_change_1", "", NA, min = 1) #,
+                                          #numericInput("double_change_2", "", NA, min = 1),
+                                          #numericInput("double_change_3", "", NA, min = 1)
                                    ),
                                    column(12, style="display:center-align",
                                           actionButton("submit", "Submit DT changes"),
@@ -161,13 +161,24 @@ server <- function(input, output, session) {
     num_cases <- input$num_cases
     doubling_time <- input$doubling_time
     
-    naive_estimations <- county_df %>% group_by(County) %>% 
-      mutate(relative_pop = population_in_age_group/sum(population_in_age_group)) %>% 
-      mutate(estimated_cases = num_cases*relative_pop) %>% 
-      mutate(estimated_fatal_cases = estimated_cases*case_fatality_rate) %>% 
-      mutate(estimated_critical_cases = estimated_cases*critical_case_rate) %>% 
-      mutate(estimated_severe_cases = estimated_cases*severe_cases_rate)
+    print(county_df)
     
+    combined_counties_severity_rates <- county_df %>% group_by(age_decade) %>% 
+      summarise(
+        combined_population_in_age_group = sum(population_in_age_group),
+        wtd_case_fatality_rate = weighted.mean(case_fatality_rate, population_in_age_group),
+        wtd_critical_case_rate = weighted.mean(critical_case_rate, population_in_age_group),
+        wtd_severe_cases_rate = weighted.mean(severe_cases_rate, population_in_age_group)
+      )
+    
+    naive_estimations <- combined_counties_severity_rates %>%
+      mutate(relative_pop = combined_population_in_age_group/sum(combined_population_in_age_group)) %>%
+      mutate(estimated_cases = num_cases*relative_pop) %>% 
+      mutate(estimated_cases = num_cases*relative_pop) %>% 
+      mutate(estimated_fatal_cases = estimated_cases*wtd_case_fatality_rate) %>% 
+      mutate(estimated_critical_cases = estimated_cases*wtd_critical_case_rate) %>% 
+      mutate(estimated_severe_cases = estimated_cases*wtd_severe_cases_rate)
+      
     naive_estimations
   })
   
@@ -197,11 +208,11 @@ server <- function(input, output, session) {
     
     if (has_nan) {
       if (length(input$county1) > 1) {
-        text <- paste(c(text, "Assuming a total of", bed_total, "hospital beds with no interventions, these will be filled within",
+        text <- paste(c(text, "Assuming a total of", bed_total, "hospital beds and no interventions, the number of cumulative cases will equal the number of hospital beds within",
                         days_to_fill, "days. \n"), collapse = " ")
       }
     } else {
-      text <- paste(c(text, 'Assuming no interventions, these will be filled within ', days_to_fill, " days. \n"), collapse = "")
+      text <- paste(c(text, 'Assuming no interventions, the number of cumulative cases will equal the number of hospital beds within ', days_to_fill, " days. \n"), collapse = "")
     }
     
     dt_changes = get_dt_changes()
@@ -213,9 +224,9 @@ server <- function(input, output, session) {
       first_day_without_beds = min(which(beds_remaining<=0)) - 1
       print(first_day_without_beds)
       if(length(first_day_without_beds > 0) & first_day_without_beds < Inf) {
-        text <- paste(text, 'With the interventions, these will be filled within ', first_day_without_beds, " days. \n", sep = "")
+        text <- paste(text, 'With the interventions, the number of commulative cases will equal the number of hospital beds within ', first_day_without_beds, " days. \n", sep = "")
       } else {
-        text <- paste(text, 'With the interventions, these will not be filled within ', input$num_days, " days. \n", sep = "")
+        text <- paste(text, 'With the interventions, the number of commulative cases will be LESS than the number of hospital beds in ', input$num_days, " days. \n", sep = "")
       }
     }
     
@@ -225,11 +236,11 @@ server <- function(input, output, session) {
   
   observeEvent(input$clear, {
     updateNumericInput(session, "day_change_1", value = NA)
-    updateNumericInput(session, "day_change_2", value = NA)
-    updateNumericInput(session, "day_change_3", value = NA)
+    #updateNumericInput(session, "day_change_2", value = NA)
+    #updateNumericInput(session, "day_change_3", value = NA)
     updateNumericInput(session, "double_change_1", value = NA)
-    updateNumericInput(session, "double_change_2", value = NA)
-    updateNumericInput(session, "double_change_3", value = NA)
+    #updateNumericInput(session, "double_change_2", value = NA)
+    #updateNumericInput(session, "double_change_3", value = NA)
   })
   
   get_dt_changes <- reactive({
@@ -243,8 +254,8 @@ server <- function(input, output, session) {
     
     dt_changes <- c() 
     if (valid_pair(input$double_change_1, input$day_change_1)) {dt_changes = c(dt_changes, c(input$double_change_1, input$day_change_1))}
-    if (valid_pair(input$double_change_2, input$day_change_2)) {dt_changes = c(dt_changes, c(input$double_change_2, input$day_change_2))}
-    if (valid_pair(input$double_change_3, input$day_change_3)) {dt_changes = c(dt_changes, c(input$double_change_3, input$day_change_3))}
+    #if (valid_pair(input$double_change_2, input$day_change_2)) {dt_changes = c(dt_changes, c(input$double_change_2, input$day_change_2))}
+    #if (valid_pair(input$double_change_3, input$day_change_3)) {dt_changes = c(dt_changes, c(input$double_change_3, input$day_change_3))}
     return(dt_changes)
   })
   
@@ -291,7 +302,7 @@ server <- function(input, output, session) {
     critical_cases <- case_numbers$critical
     severe_cases <- case_numbers$severe
     
-    num_beds <- sum((get_naive_estimations() %>% group_by(County) %>% summarize(num_beds = max(num_beds)))$num_beds)
+    num_beds <- sum((get_county_df() %>% group_by(County) %>% summarize(num_beds = max(num_beds)))$num_beds)
     n_days <- input$num_days
     day_list <- c(0:n_days)
     
@@ -299,10 +310,10 @@ server <- function(input, output, session) {
     
     chart_data = melt(data.table(
       date = Sys.Date() + day_list,
-      estimated_hospitalizations = critical_cases + severe_cases,
-      severe_cases = severe_cases,
-      critical_cases = critical_cases,
-      fatal_cases = fatal_cases
+      cumulative_hospitalizations = critical_cases + severe_cases,
+      cumulative_severe_cases = severe_cases,
+      cumulative_critical_cases = critical_cases,
+      cumulative_fatal_cases = fatal_cases
     ), id.vars = c('date'))
     chart_data[, value := round(value)]
     
