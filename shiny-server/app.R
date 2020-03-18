@@ -119,11 +119,11 @@ ui <- shinyUI(
                         
                         sliderInput("re", "Effective reproductive number with control",
                                     min = 0.5, max = 3,
-                                    value = 1.5),
+                                    value = 1.5)
                         
-                        sliderInput("num_beds", "Number of hospital beds",
-                                    min = 0, max = 300000,
-                                    value = 1000)
+                        # sliderInput("num_beds", "Number of hospital beds",
+                        #             min = 0, max = 300000,
+                        #             value = 1000)
                       ),
                       mainPanel(
                         plotOutput("plot_tuite_fisman"),
@@ -494,9 +494,9 @@ server <- function(input, output, session) {
     # how many full generations?
     num_gens = floor(as.numeric(end_date_sim - input$start_date_outbreak)/input$serial_interval)
     
-    # vector, no control
+    # vectors, no control
     Nt_no_control = input$it0 * cumsum(input$r0^(0:num_gens))
-    
+    incidence_no_control = Nt_no_control - c(0, Nt_no_control[-length(Nt_no_control)])
     
     #how many generations before control? (including the current generation)
     num_gens_pre_control = ceiling(as.numeric(input$start_date_control - input$start_date_outbreak)/input$serial_interval)
@@ -511,7 +511,9 @@ server <- function(input, output, session) {
     itc = Nt_pre_control[length(Nt_pre_control)] - Nt_pre_control[length(Nt_pre_control) - 1]
     Nt_post_control = Nt_pre_control[length(Nt_pre_control)] + itc * cumsum(input$re^(1:num_gens_post_control))
     
+    # vectors, with controls
     Nt_with_control = c(Nt_pre_control, Nt_post_control)
+    incidence_with_control = Nt_with_control - c(0, Nt_with_control[-length(Nt_with_control)])
     
     
     # plot
@@ -532,20 +534,35 @@ server <- function(input, output, session) {
           lwd = 2,
           col = 'orange')
     
+    lines(x = input$start_date_outbreak + 0:(length(Nt_with_control) - 1) * days(input$serial_interval),
+          y = incidence_no_control,
+          lwd = 1,
+          col = 'red',
+          lty = 'dashed')
+    
+    lines(x = input$start_date_outbreak + 0:(length(Nt_with_control) - 1) * days(input$serial_interval),
+          y = incidence_with_control,
+          lwd = 1,
+          col = 'orange',
+          lty = 'dashed')
+    
     options(scipen = 999)
     axis(2, at = seq(0, 300000, 100000))
     
-    axis.Date(1, at = seq(ymd('2019-11-01'), ymd('2020-03-31'), by = "2 week"),
-              format = "%m-%d-%Y")
+    axis.Date(1, at = seq(ymd('2019-11-01'), ymd('2020-03-31'), by = '2 week'),
+              format = '%m-%d-%Y')
     
     abline(v = ymd(input$start_date_control), col = 'black', lty = 'dashed')
-    text(x = ymd(input$start_date_control), y = 2.75e5, "Control start", pos = 2)
+    text(x = ymd(input$start_date_control), y = 2.75e5, 'Control start', pos = 2)
     
-    abline(h = input$num_beds, col = 'black', lty = 'dashed')
-    text(x = ymd(input$start_date_outbreak) + days(7), y = input$num_beds, "Number of hospital beds", pos = 3)
+    # abline(h = input$num_beds, col = 'black', lty = 'dashed')
+    # text(x = ymd(input$start_date_outbreak) + days(7), y = input$num_beds, 'Number of hospital beds', pos = 3)
     
     grid(nx = NA, ny = NULL)
-    legend("topleft", c("No control", "With control"), fill = c('red', 'orange'))
+    legend('topleft', c('No control (cumulative)', 'No control (new cases)', 'With control (cumulative)', 'With control (new cases)'), 
+           col = c('red', 'red', 'orange', 'orange'),
+           lty = c('solid', 'dashed', 'solid', 'dashed'),
+           lwd = c(2, 1, 2, 1))
   })
 }
 
