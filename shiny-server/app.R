@@ -49,10 +49,13 @@ ui <- shinyUI(
                           column(12, 
                                  uiOutput("state_selector_1"),
                                  uiOutput("county_selector_1"),
+                                 hr(),
+                                 h4("Baseline"),
                                  numericInput("num_cases", "Current Cases (Today)", 138, min = 1),
-                                 numericInput("num_days", "Number of Days", 50, min = 1),
+                                 numericInput("num_days", "Number of Days to Project Forward", 50, min = 1),
                                  numericInput("doubling_time", "Doubling Time (Days)", 6, min = 1, max = 20),
                                  hr(),
+                                 h4("Interventions"),
                                  p("Doubling times (DT) can be changed at up to three time points to reflect interventions."),
                                  fluidRow(
                                    column(6, tags$b("On Day")),
@@ -62,12 +65,12 @@ ui <- shinyUI(
                                    column(6,
                                           numericInput("day_change_1", "", NA, min = 1),
                                           numericInput("day_change_2", "", NA, min = 1),
-                                          numericInput("day_change_3", "", NA, min = 1),
+                                          numericInput("day_change_3", "", NA, min = 1)
                                    ),
                                    column(6,
                                           numericInput("double_change_1", "", NA, min = 1),
                                           numericInput("double_change_2", "", NA, min = 1),
-                                          numericInput("double_change_3", "", NA, min = 1),
+                                          numericInput("double_change_3", "", NA, min = 1)
                                    ),
                                    column(12, style="display:center-align",
                                           actionButton("submit", "Submit DT changes"),
@@ -81,7 +84,7 @@ ui <- shinyUI(
                       mainPanel(
                         textOutput("text2"),
                         textOutput("text1"),
-                        tags$head(tags$style("#text1{color: black; font-size: 20px; white-space: pre-wrap;}")),
+                        tags$head(tags$style("#text1, #text2 {color: black; font-size: 20px; white-space: pre-wrap;}")),
                         br(),
                         tableOutput("table1"),
                         hr(),
@@ -109,7 +112,7 @@ server <- function(input, output, session) {
     data_available = df[df$State == input$state1, "County"]
     
     selectInput(inputId = "county1", #name of input
-                label = "County:", #label displayed in ui
+                label = "County/ies:", #label displayed in ui
                 choices = sort(unique(data_available)), #calls list of available counties
                 selected = "Santa Clara County",
                 multiple = TRUE)
@@ -200,6 +203,22 @@ server <- function(input, output, session) {
     } else {
       text <- paste(c(text, 'Assuming no interventions, these will be filled within ', days_to_fill, " days. \n"), collapse = "")
     }
+    
+    dt_changes = get_dt_changes()
+    if(length(dt_changes) > 0 & bed_total > 0) {
+      message("ninja")
+      cases_w_interventions <- get_case_numbers()
+      intervention_hospitalizations = cases_w_interventions$critical + cases_w_interventions$severe
+      beds_remaining = bed_total - intervention_hospitalizations
+      first_day_without_beds = min(which(beds_remaining<=0)) - 1
+      print(first_day_without_beds)
+      if(length(first_day_without_beds > 0) & first_day_without_beds < Inf) {
+        text <- paste(text, 'With the interventions, these will be filled within ', first_day_without_beds, " days. \n", sep = "")
+      } else {
+        text <- paste(text, 'With the interventions, these will not be filled within ', input$num_days, " days. \n", sep = "")
+      }
+    }
+    
     text
     
   })
@@ -323,9 +342,6 @@ server <- function(input, output, session) {
       text = paste(text, county_text, sep = '')
     }
     
-    text = paste(text, paste(c("This is a total of ",
-                               format(sum(county_df$population_in_age_group), big.mark=","),
-                               "people."), collapse = " "), sep = '')
     text
   })
   
