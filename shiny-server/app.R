@@ -93,6 +93,67 @@ ui <- shinyUI(
                         plotlyOutput("plot2"),
                         width = 9
                       )
+             ),
+             
+             tabPanel("Tuite and Fisman (2020)",
+                      sidebarPanel(
+                        sliderInput("serial_interval", "Serial interval (days)",
+                                    min = 5, max = 10,
+                                    value = 7),
+                        
+                        sliderInput("start_date_outbreak", "Outbreak start date",
+                                    min = ymd('2019-11-01'), max = ymd('2019-12-31'),
+                                    value = ymd('2019-12-01')),
+                        
+                        sliderInput("start_date_control", "Control start date",
+                                    min = ymd('2020-01-01'), max = ymd('2020-01-31'),
+                                    value = ymd('2020-01-15')),
+                        
+                        sliderInput("it0", "Initial number of cases",
+                                    min = 1, max = 40,
+                                    value = 1),
+                        
+                        sliderInput("r0", "Basic reproductive number",
+                                    min = 1.5, max = 4,
+                                    value = 2.3),
+                        
+                        sliderInput("re", "Effective reproductive number with control",
+                                    min = 0.5, max = 3,
+                                    value = 1.5),
+                        
+                        sliderInput("num_beds", "Number of hospital beds",
+                                    min = 0, max = 300000,
+                                    value = 1000)
+                      ),
+                      mainPanel(
+                        plotOutput("plot_tuite_fisman"),
+                        width = 7
+                      )
+             ),
+             
+             tabPanel("Documentation",
+                      fluidPage(
+                        mainPanel(
+                          h3(a(href='https://docs.google.com/spreadsheets/d/1pIGNv4EiXOjLXNvIoJUEGy6681Pf3LHbRQzzuFjAtSs/edit#gid=0', "Click here for metholodogy.")),
+                          br(),
+                          h4("References"),
+                          a(href="https://www.census.gov/data/datasets/time-series/demo/popest/2010s-counties-detail.html", "[1] County-level data from US Census"),
+                          br(),
+                          a(href="https://hifld-geoplatform.opendata.arcgis.com/datasets/hospitals", "[2] Data on Hospital beds from HIFLD"),
+                          br(),
+                          a(href="https://www.imperial.ac.uk/media/imperial-college/medicine/sph/ide/gida-fellowships/Imperial-College-COVID19-NPI-modelling-16-03-2020.pdf", "[3] Estimates of the severity of COVID-19 disease by age group"),
+                          br(),
+                          br(),
+                          strong("Contact:"),
+                          img(src = "email.png", height = 40, width = 'auto'),
+                          hr(),
+                          strong("Created by:"), 
+                          p("Johannes Ferstad, Angela Gu, Raymond Lee, Isha Thapa, Kevin Schulman, David Scheinker"),
+                          br(),
+                          img(src = "SURF.png", height = 60, width = 'auto'),
+                          img(src = "CERC.png", height = 60, width = 'auto')
+                        )
+                      )
              )
   )
 )
@@ -320,7 +381,7 @@ server <- function(input, output, session) {
     chart_data[chart_data$variable == 'estimated_hospitalizations', 'variable'] <-  'Cumulative Hospitalizations'
     chart_data[chart_data$variable == 'severe_cases', 'variable'] <-  'Cumulative Severe Cases'
     chart_data[chart_data$variable == 'critical_cases', 'variable'] <-  'Cumulative Critical Cases'
-    chart_data[chart_data$variable == 'fatal_cases', 'variable'] <-  'Cumulative Ventilator / Fatal Cases'
+    chart_data[chart_data$variable == 'fatal_cases', 'variable'] <-  'Cumulative Fatal Cases'
     
     chart_data[, value := round(value)]
     
@@ -388,8 +449,8 @@ server <- function(input, output, session) {
     case_severe_rate <- sum(county_df['severe_cases_rate']*county_df['population_in_age_group'])/total_population
     critical_plus_severe <- case_critical_rate + case_severe_rate
     
-    table <- data.table(" " = c('Population-specific severity rate<br>(per 100 cases)'),
-                        "Ventilator / Mortality<br>(Subset of Critical)" = c(round(case_mortality_rate*100, digits = 2)),
+    table <- data.table(" " = c('Population-specific case severity rate<br>(per 100 cases)'),
+                        "Fatality<br>(Subset of Critical)" = c(round(case_mortality_rate*100, digits = 2)),
                         "Critical" = c(round(case_critical_rate*100, digits = 2)),
                         "Severe"= c(round(case_severe_rate*100, digits = 2)),
                         "Hospitalization<br>(Critical + Severe)"= c(round(critical_plus_severe*100, digits = 2)))
@@ -427,7 +488,68 @@ server <- function(input, output, session) {
     ggplotly(p, tooltip = 'text')
   })
   
+  output$plot_tuite_fisman <- renderPlot({
+    end_date_sim = ymd('2020-03-31')
+    
+    # how many full generations?
+    num_gens = floor(as.numeric(end_date_sim - input$start_date_outbreak)/input$serial_interval)
+    
+    # vector, no control
+    Nt_no_control = input$it0 * cumsum(input$r0^(0:num_gens))
+    
+    
+    #how many generations before control? (including the current generation)
+    num_gens_pre_control = ceiling(as.numeric(input$start_date_control - input$start_date_outbreak)/input$serial_interval)
+    
+    #how many full generations after control
+    num_gens_post_control = num_gens - num_gens_pre_control # ceiling(as.numeric(end_date_sim - input$start_date_control)/input$serial_interval)
+    
+    
+    # get Nt vector
+    Nt_pre_control = input$it0 * cumsum(input$r0^(0:num_gens_pre_control))
+    
+    itc = Nt_pre_control[length(Nt_pre_control)] - Nt_pre_control[length(Nt_pre_control) - 1]
+    Nt_post_control = Nt_pre_control[length(Nt_pre_control)] + itc * cumsum(input$re^(1:num_gens_post_control))
+    
+    Nt_with_control = c(Nt_pre_control, Nt_post_control)
+    
+    
+    # plot
+    plot(x = input$start_date_outbreak + 0:(length(Nt_no_control) - 1) * days(input$serial_interval),
+         y = Nt_no_control,
+         ylim = c(0, 3.2e5),
+         xlim = c(ymd('2019-11-01'), ymd('2020-03-31')),
+         xlab = 'Date',
+         ylab = 'Cumulative cases',
+         type = 'l',
+         lwd = 2,
+         xaxt = 'n',
+         yaxt = 'n',
+         col = 'red')
+    
+    lines(x = input$start_date_outbreak + 0:(length(Nt_with_control) - 1) * days(input$serial_interval),
+          y = Nt_with_control,
+          lwd = 2,
+          col = 'orange')
+    
+    options(scipen = 999)
+    axis(2, at = seq(0, 300000, 100000))
+    
+    axis.Date(1, at = seq(ymd('2019-11-01'), ymd('2020-03-31'), by = "2 week"),
+              format = "%m-%d-%Y")
+    
+    abline(v = ymd(input$start_date_control), col = 'black', lty = 'dashed')
+    text(x = ymd(input$start_date_control), y = 2.75e5, "Control start", pos = 2)
+    
+    abline(h = input$num_beds, col = 'black', lty = 'dashed')
+    text(x = ymd(input$start_date_outbreak) + days(7), y = input$num_beds, "Number of hospital beds", pos = 3)
+    
+    grid(nx = NA, ny = NULL)
+    legend("topleft", c("No control", "With control"), fill = c('red', 'orange'))
+  })
 }
+
+
 
 shinyApp(ui, server)
 
