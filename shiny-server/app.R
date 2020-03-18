@@ -52,7 +52,7 @@ ui <- shinyUI(
                                  hr(),
                                  h4("Baseline"),
                                  numericInput("num_cases", "Current Cases (Today)", 138, min = 1),
-                                 numericInput("num_days", "Number of Days to Project Ahead", 50, min = 1),
+                                 numericInput("num_days", "Number of Days to Project Ahead", 55, min = 1),
                                  numericInput("doubling_time", "Doubling Time (Days)", 6, min = 1, max = 20),
                                  hr(),
                                  h4("Intervention"),
@@ -109,12 +109,13 @@ server <- function(input, output, session) {
   
   output$county_selector_1 <- renderUI({#creates County select box object called in ui
     
+    req(input$state1)
     data_available = df[df$State == input$state1, "County"]
     
     selectInput(inputId = "county1", #name of input
-                label = "County/ies:", #label displayed in ui
+                label = "County:", #label displayed in ui
                 choices = sort(unique(data_available)), #calls list of available counties
-                selected = "Santa Clara County",
+                selected = if (input$state1 == 'California') 'Santa Clara County' else sort(unique(data_available)[1]),
                 multiple = TRUE)
   })
   
@@ -310,28 +311,47 @@ server <- function(input, output, session) {
     
     chart_data = melt(data.table(
       date = Sys.Date() + day_list,
-      cumulative_hospitalizations = critical_cases + severe_cases,
-      cumulative_severe_cases = severe_cases,
-      cumulative_critical_cases = critical_cases,
-      cumulative_fatal_cases = fatal_cases
+      estimated_hospitalizations = critical_cases + severe_cases,
+      severe_cases = severe_cases,
+      critical_cases = critical_cases,
+      fatal_cases = fatal_cases
     ), id.vars = c('date'))
+    
+    chart_data[chart_data$variable == 'estimated_hospitalizations', 'variable'] <-  'Cumulative Hospitalizations'
+    chart_data[chart_data$variable == 'severe_cases', 'variable'] <-  'Cumulative Severe Cases'
+    chart_data[chart_data$variable == 'critical_cases', 'variable'] <-  'Cumulative Critical Cases'
+    chart_data[chart_data$variable == 'fatal_cases', 'variable'] <-  'Cumulative Ventilator / Fatal Cases'
+    
     chart_data[, value := round(value)]
     
     gp = ggplot(chart_data,
-                aes(x=date, y=value, color=variable)) +
-      geom_line(size = 1.2) +
+                aes(x=date, y=value, group=variable, text = sprintf("date:  %s \n cases: %i", date, value))) +
+      geom_line(aes(linetype = variable, size = variable, color = variable)) +  guides(linetype=FALSE) + guides(size=FALSE) +
+      scale_color_manual(values=c("black", "dodgerblue", "red", "purple")) +
+      scale_linetype_manual(values=c("solid", "solid", "solid", "dashed")) +
+      scale_size_manual(values=c(0.75, 0.5, 0.5, 0.25)) +
       theme_minimal() +
-      ylab("") +
+      ylab("") + xlab('Date')  +
       coord_cartesian(ylim=c(0, max(critical_cases + severe_cases)))
+    
+    if (input$submit != 0) {
+      dt_changes = get_dt_changes()
+      days <- dt_changes[c(FALSE, TRUE)]
+      for (i in days) {
+        gp = gp +
+          geom_vline(xintercept = as.numeric(Sys.Date() + i), color = 'grey', linetype = 'dashed')
+      }
+    }
     
     if(!is.na(num_beds)) {
       gp = gp +
-        geom_hline(yintercept = num_beds, linetype = "dashed") + 
-        annotate("text", x = Sys.Date() + 0.5*n_days, y = num_beds*1.05, label = "Number of Hospital Beds", vjust=0, hjust=0) +
+        geom_hline(yintercept = num_beds, linetype = "dashed", color = 'grey') + 
+        annotate("text", x = Sys.Date() + 0.5*n_days, y = num_beds*0.95, label = "Number of Hospital Beds", vjust=1, hjust=0, color = 'grey') +
         coord_cartesian(ylim=c(0, pmax(num_beds*1.05, max(critical_cases + severe_cases))))
     }
     
-    ggplotly(gp) %>% 
+    
+    ggplotly(gp, tooltip = 'text') %>% 
       layout(
         legend = list(x = 0.02, y = 0.1, bgcolor = 'rgba(0,0,0,0)'),
         xaxis=list(fixedrange=TRUE),
@@ -369,7 +389,7 @@ server <- function(input, output, session) {
     critical_plus_severe <- case_critical_rate + case_severe_rate
     
     table <- data.table(" " = c('Population-specific severity rate<br>(per 100 cases)'),
-                        "Mortality/Ventilator<br>(Subset of Critical)" = c(round(case_mortality_rate*100, digits = 2)),
+                        "Ventilator / Mortality<br>(Subset of Critical)" = c(round(case_mortality_rate*100, digits = 2)),
                         "Critical" = c(round(case_critical_rate*100, digits = 2)),
                         "Severe"= c(round(case_severe_rate*100, digits = 2)),
                         "Hospitalization<br>(Critical + Severe)"= c(round(critical_plus_severe*100, digits = 2)))
