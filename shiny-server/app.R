@@ -148,7 +148,7 @@ ui <- shinyUI(
                           img(src = "email.png", height = 40, width = 'auto'),
                           hr(),
                           strong("Created by:"), 
-                          p("Johannes Ferstad, Angela Gu, Raymond Lee, Isha Thapa, Kevin Schulman, David Scheinker"),
+                          p("Johannes Opsahl Ferstad, Angela Gu, Raymond Ye Lee, Isha Thapa, Kevin Schulman, David Scheinker"),
                           br(),
                           img(src = "SURF.png", height = 60, width = 'auto'),
                           img(src = "CERC.png", height = 60, width = 'auto')
