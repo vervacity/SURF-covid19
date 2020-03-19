@@ -84,8 +84,8 @@ ui <- shinyUI(
                         width = 3
                       ),
                       mainPanel(
-                        HTML("<h3> Input the number of COVID-19 cases, the rate at which they spread, and the impact of interventions to 
-                        estimate the number of people requiring hospitalization. <b> This is a model, not a forecast. </b> See Documentation tab for methodology. </h3>"
+                        HTML("<h3> Input the number of COVID-19 cases, the rate at which they spread, and the impact of an intervention to 
+                        estimate the number of people requiring hospitalization.<br><b> This is a model, not a forecast.</b><br>See the Documentation tab for methodology. </h3>"
                         ),
                         hr(),
                         textOutput("text1"),
@@ -299,7 +299,7 @@ server <- function(input, output, session) {
                         days_to_fill, "days. \n"), collapse = " ")
       }
     } else {
-      text <- paste(c(text, 'Assuming no interventions, the number of cumulative cases will equal the number of hospital beds within ', days_to_fill, " days. \n"), collapse = "")
+      text <- paste(c(text, '\nAssuming no interventions, the number of cumulative cases will equal the number of hospital beds within ', days_to_fill, " days. \n"), collapse = "")
     }
     
     dt_changes = get_dt_changes()
@@ -411,14 +411,14 @@ server <- function(input, output, session) {
       date = Sys.Date() + day_list,
       estimated_hospitalizations = critical_cases + severe_cases,
       severe_cases = severe_cases,
-      critical_cases = critical_cases,
-      fatal_cases = fatal_cases
+      critical_cases = critical_cases#,
+      #fatal_cases = fatal_cases
     ), id.vars = c('date'))
     
-    chart_data[chart_data$variable == 'estimated_hospitalizations', 'variable'] <-  'Cumulative Hospitalizations'
-    chart_data[chart_data$variable == 'severe_cases', 'variable'] <-  'Cumulative Severe Cases'
-    chart_data[chart_data$variable == 'critical_cases', 'variable'] <-  'Cumulative Critical Cases'
-    chart_data[chart_data$variable == 'fatal_cases', 'variable'] <-  'Cumulative Fatal Cases'
+    chart_data[chart_data$variable == 'estimated_hospitalizations', 'variable'] <-  'Hospitalizations (Severe + Critical Cases)'
+    chart_data[chart_data$variable == 'severe_cases', 'variable'] <-  'Severe Cases'
+    chart_data[chart_data$variable == 'critical_cases', 'variable'] <-  'Critical Cases'
+    #chart_data[chart_data$variable == 'fatal_cases', 'variable'] <-  'Cumulative Fatal Cases'
     
     chart_data[, value := round(value)]
     
