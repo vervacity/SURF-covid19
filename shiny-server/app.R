@@ -148,10 +148,10 @@ ui <- shinyUI(
              tabPanel("Documentation",
                       fluidPage(
                         mainPanel(
-                          h4(a(href='https://docs.google.com/spreadsheets/d/1pIGNv4EiXOjLXNvIoJUEGy6681Pf3LHbRQzzuFjAtSs/edit#gid=0', "Click here for metholodogy.",
+                          h4(a(href='https://docs.google.com/spreadsheets/d/1pIGNv4EiXOjLXNvIoJUEGy6681Pf3LHbRQzzuFjAtSs/edit#gid=0', "Click here for the metholodogy.",
                                target = '_blank')),
                           br(),
-                          h4(a(href='https://docs.google.com/spreadsheets/d/1Fp5bvaTgGde2IQewcaIvmIlpGRCnD20xZuO8nZZDVCM/', "Data",
+                          h4(a(href='https://docs.google.com/spreadsheets/d/1Fp5bvaTgGde2IQewcaIvmIlpGRCnD20xZuO8nZZDVCM/', "Click here for the data.",
                                target = '_blank')),
                           br(),
                           h4("Definitions"),
@@ -175,7 +175,7 @@ ui <- shinyUI(
                           br(),
                           br(),
                           strong("Contact:"),
-                          img(src = "email2.png", height = 17, width = 'auto'),
+                          img(src = "email2.png", height = 17.5, width = 'auto'),
                           hr(),
                           strong("Created by:"), 
                           p("Johannes Opsahl Ferstad, Angela Gu, Raymond Ye Lee, Isha Thapa, Alejandro Martinez, Andy Shin, Kevin Schulman, David Scheinker"),
