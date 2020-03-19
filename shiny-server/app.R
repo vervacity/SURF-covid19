@@ -54,6 +54,8 @@ ui <- shinyUI(
                                  numericInput("num_cases", "Current Cases (Today)", 138, min = 1),
                                  numericInput("num_days", "Number of Days to Project Ahead", 55, min = 1),
                                  numericInput("doubling_time", "Doubling Time (Days)", 6, min = 1, max = 20),
+                                 numericInput("los_severe", "Length of stay (Days) for Severe", 12, min = 1, max = 90),
+                                 numericInput("los_critical", "Length of stay (Days) for Critical", 28, min = 1, max = 90),
                                  hr(),
                                  h4("Intervention"),
                                  p("Doubling times (DT) can be changed to reflect an intervention."),
@@ -349,7 +351,11 @@ server <- function(input, output, session) {
       fatal_cases[i+1] = fatal_cases[i]*2^(1/doubling_time)
       critical_cases[i+1] = critical_cases[i]*2^(1/doubling_time)
       severe_cases[i+1] = severe_cases[i]*2^(1/doubling_time)
-    }      
+    }
+    
+    # number hospitalized at any one time
+    critical_cases = critical_cases - c(rep(0, input$los_critical), critical_cases)[1:length(critical_cases)]
+    severe_cases = severe_cases - c(rep(0, input$los_severe), severe_cases)[1:length(severe_cases)]
     
     return_cases <- list("fatal" = fatal_cases, "critical" = critical_cases, "severe" = severe_cases)
     return(return_cases)
