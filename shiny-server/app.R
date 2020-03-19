@@ -355,6 +355,19 @@ server <- function(input, output, session) {
     return(dt_changes)
   })
   
+  # Function to get hospitalizations from cumulative cases, with projection backwards from current cases to prevent jump at day LOS
+  get_hospitalizations = function(cumulative_cases, los, doubling_time) {
+    
+    # Project cases backwards LOS days
+    cum_cases_w_backwards_projection = c(rep(cumulative_cases[1], los), cumulative_cases)
+    for (i in los:1) {
+      cum_cases_w_backwards_projection[i] = cum_cases_w_backwards_projection[i+1]/2^(1/doubling_time)
+    }
+    
+    # Calculate hospitalizations from day 1 through projection period
+    return(cum_cases_w_backwards_projection[(los+1):length(cum_cases_w_backwards_projection)] - cum_cases_w_backwards_projection[1:length(cumulative_cases)])
+  }
+  
   get_case_numbers <- reactive({
     req(input$county1)
     
@@ -378,8 +391,10 @@ server <- function(input, output, session) {
     }
     
     # number hospitalized at any one time (without intervention)
-    critical_without_intervention = critical_without_intervention - c(rep(0, input$los_critical), critical_without_intervention)[1:length(critical_without_intervention)]
-    severe_without_intervention = severe_without_intervention - c(rep(0, input$los_severe), severe_without_intervention)[1:length(severe_without_intervention)]
+    #critical_without_intervention = critical_without_intervention - c(rep(0, input$los_critical), critical_without_intervention)[1:length(critical_without_intervention)]
+    critical_without_intervention = get_hospitalizations(critical_without_intervention, input$los_critical, doubling_time)
+    #severe_without_intervention = severe_without_intervention - c(rep(0, input$los_severe), severe_without_intervention)[1:length(severe_without_intervention)]
+    severe_without_intervention = get_hospitalizations(severe_without_intervention, input$los_severe, doubling_time)
     
     # cases with intervention
     dt_changes = c()
@@ -401,8 +416,10 @@ server <- function(input, output, session) {
     }
     
     # number hospitalized at any one time (with intervention)
-    critical_cases = critical_cases - c(rep(0, input$los_critical), critical_cases)[1:length(critical_cases)]
-    severe_cases = severe_cases - c(rep(0, input$los_severe), severe_cases)[1:length(severe_cases)]
+    #critical_cases = critical_cases - c(rep(0, input$los_critical), critical_cases)[1:length(critical_cases)]
+    critical_cases = get_hospitalizations(critical_cases, input$los_critical, doubling_time)
+    #severe_cases = severe_cases - c(rep(0, input$los_severe), severe_cases)[1:length(severe_cases)]
+    severe_cases = get_hospitalizations(severe_cases, input$los_severe, doubling_time)
     
     total_population <- sum(naive_estimations$combined_population_in_age_group)
     if ((severe_cases[n_days+1] + critical_cases[n_days + 1]) < 0.25*total_population) {
