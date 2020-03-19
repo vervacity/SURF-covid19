@@ -148,17 +148,18 @@ ui <- shinyUI(
              tabPanel("Documentation",
                       fluidPage(
                         mainPanel(
-                          h3(a(href='https://docs.google.com/spreadsheets/d/1pIGNv4EiXOjLXNvIoJUEGy6681Pf3LHbRQzzuFjAtSs/edit#gid=0', "Click here for metholodogy.",
+                          h4(a(href='https://docs.google.com/spreadsheets/d/1pIGNv4EiXOjLXNvIoJUEGy6681Pf3LHbRQzzuFjAtSs/edit#gid=0', "Click here for the metholodogy.",
+                               target = '_blank')),
+                          br(),
+                          h4(a(href='https://docs.google.com/spreadsheets/d/1Fp5bvaTgGde2IQewcaIvmIlpGRCnD20xZuO8nZZDVCM/', "Click here for the data.",
                                target = '_blank')),
                           br(),
                           h4("Definitions"),
                           p("Doubling time is defined by the amount of time it takes a population to double in size. In this case, assuming exponential 
                             growth in the number of COVID-19 cases, we are defining the doubling time as the number of days it takes for cases to double. "),
                           uiOutput("formula"),
-                          HTML('For more details see this <a href="https://www.nejm.org/doi/full/10.1056/NEJMoa2001316">analysis</a> of COVID-19 doubling time.'),
+                          HTML('For more details, see this <a href="https://www.nejm.org/doi/full/10.1056/NEJMoa2001316">analysis</a> of COVID-19 doubling time.'),
                           br(),
-                          h4(a(href='https://docs.google.com/spreadsheets/d/1Fp5bvaTgGde2IQewcaIvmIlpGRCnD20xZuO8nZZDVCM/', "Data",
-                               target = '_blank')),
                           br(),
                           h4("References"),
                           a(href="https://www.census.gov/data/datasets/time-series/demo/popest/2010s-counties-detail.html", "[1] County-level data from US Census"),
@@ -172,9 +173,10 @@ ui <- shinyUI(
                           a(href="https://www.thelancet.com/journals/lancet/article/PIIS0140-6736(20)30566-3/fulltext", "[5] 11 day LOS for all patients (Table 2)"),
                           br(),
                           br(),
-                          strong("Contact:"),
-                          img(src = "email.png", height = 22, width = 'auto'),
                           br(),
+                          strong("Contact:"),
+                          img(src = "email2.png", height = 17.5, width = 'auto'),
+                          hr(),
                           strong("Created by:"), 
                           p("Johannes Opsahl Ferstad, Angela Gu, Raymond Ye Lee, Isha Thapa, Alejandro Martinez, Andy Shin, Kevin Schulman, David Scheinker"),
                           br(),
@@ -240,7 +242,7 @@ server <- function(input, output, session) {
   output$formula <- renderUI({
     withMathJax(sprintf('We define \\(N_{t+1} = N_{t} \\times 2^{\\frac{1}{DT}} \\), 
                         where \\(N_t \\) is the number of cases at time \\(t\\)
-                        and DT is the doubling time.'))
+                        and \\(DT\\) is the doubling time.'))
   })
   
   get_county_df <- reactive({
