@@ -1,0 +1,64 @@
+# County level data from census
+
+```{r}
+library(data.table)
+raw_ca_census_dt = load("data/cc-est2018-alldata.RData")
+
+# subset to 2018 estimates and relevant columns
+ss_cols = c('STATE', 'COUNTY', 'STNAME', 'CTYNAME', 'AGEGRP', 'TOT_POP')
+ca_census_dt = raw_ca_census_dt[YEAR == 11, ..ss_cols]
+
+str(ca_census_dt)
+```
+
+```{r}
+# recreate FIPS to match CMS data
+ca_census_dt[,FIPS := sprintf(paste0(STATE, "%03d"), COUNTY)]
+```
+
+
+Add age brackets to data
+
+```{r}
+age_brackets = as.data.table(rbind(
+  c(0, "Total", "Total", "Total"),
+  c(1, "0-4", "0-64", "0-9"),
+  c(2, "5-9", "0-64", "0-9"),
+  c(3, "10-14", "0-64", "10-19"),
+  c(4, "15-19", "0-64", "10-19"),
+  c(5, "20-24", "0-64", "20-29"),
+  c(6, "25-29", "0-64", "20-29"),
+  c(7, "30-34", "0-64", "30-39"),
+  c(8, "35-39", "0-64", "30-39"),
+  c(9, "40-44", "0-64", "40-49"),
+  c(10, "45-49", "0-64", "40-49"),
+  c(11, "50-54", "0-64", "50-59"),
+  c(12, "55-59", "0-64", "50-59"),
+  c(13, "60-64", "0-64", "60-69"),
+  c(14, "65-69", "65+", "60-69"),
+  c(15, "70-74", "65+", "70-79"),
+  c(16, "75-79", "65+", "70-79"),
+  c(17, "80-84", "65+", "80+"),
+  c(18, "85+", "65+", "80+")
+))
+setnames(age_brackets, c("AGEGRP", "age_range", "over_under_65", "age_decade"))
+age_brackets[,AGEGRP := as.integer(AGEGRP)]
+
+# merge the age_brackets onto the census data
+est_2018_w_brackets = merge(ca_census_dt, age_brackets, on="AGEGRP")
+```
+
+
+Example breakdown for Santa Clara
+```{r}
+est_2018_w_brackets[CTYNAME == "Santa Clara County"]
+```
+
+
+Aggregate by age_decade and write out
+
+```{r}
+agg_pop = est_2018_w_brackets[AGEGRP>0, .(pop = sum(TOT_POP)), by=c('FIPS', 'STNAME', 'CTYNAME', 'age_decade')]
+fwrite(agg_pop, 'data/county_age_populations_v5.csv')
+agg_pop[CTYNAME == "Santa Clara County"]
+```

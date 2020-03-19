@@ -1,0 +1,99 @@
+```{r, results="hide"}
+library(data.table)
+# install.packages("kableExtra")
+library(knitr)
+library(kableExtra)
+```
+
+# Estimating COVID-19 Case Severity in each CA County
+
+Goal: Estimate what proportion of COVID-19 infections would require hospitalization in each US county based on reported COVID-19 severity by demographics and data on US county demographics.
+
+---
+
+## 1. Load Data
+
+### Conditional Fatality Rates by Age
+
+Using adjusted rates from https://www.imperial.ac.uk/media/imperial-college/medicine/sph/ide/gida-fellowships/Imperial-College-COVID19-NPI-modelling-16-03-2020.pdf instead of raw CCDC rates
+
+
+```{r}
+cond_rates = fread('data/imperial_rates.csv')
+
+# transform rates to match earlier CCDC rates
+cond_rates = cond_rates[,.(
+  age_decade = age_group,
+  hospitalizations_per_case = hospitalization_given_symptomatic,
+  severe_cases_rate = (1-critical_care_given_hospitalization)*hospitalization_given_symptomatic,
+  critical_case_rate = critical_care_given_hospitalization*hospitalization_given_symptomatic,
+  case_fatality_rate = fatality_given_symptomatic
+)]
+
+cond_rates  %>% kable() %>% kable_styling()
+```
+
+
+### County Age Distribution
+
+**Data source:**
+
+Census County Population by Characteristics: 2010-2018 
+(https://www.census.gov/data/datasets/time-series/demo/popest/2010s-counties-detail.html?)
+
+Using 2018 population estimates. 
+
+
+```{r}
+age_buckets_by_county = fread('data/county_age_populations_v5.csv')
+age_buckets_by_county[CTYNAME == "Santa Clara County"]  %>% kable() %>% kable_styling()
+```
+
+
+
+## 2. Estimating COVID-19 Case Severity in each County
+
+
+---
+
+**Steps to get simple estimate of severe cases:**
+
+1. Join the county population numbers with conditional severity rates by age bucket.
+2. Report the aggregated severity rates for each county.
+
+---
+
+#### Step 1: Join the county population numbers with CCDC conditional fatality rates by age bucket.
+```{r}
+merged_pop_fat_rate = merge(
+  age_buckets_by_county[, .(FIPS, State = STNAME, County = CTYNAME, age_decade, population_in_age_group = pop)],
+  cond_rates,
+  by = 'age_decade')
+
+merged_pop_fat_rate[County == "Santa Clara County"]  %>% kable(digits=4) %>% kable_styling()
+```
+
+
+#### Step 3: Report the aggregated severity rates for each CA county.
+
+```{r}
+county_case_severity_rates = merged_pop_fat_rate[,.(
+  population = sum(population_in_age_group),
+  hospitalizations_per_case = weighted.mean(hospitalizations_per_case, population_in_age_group),
+  severe_cases_rate = weighted.mean(severe_cases_rate, population_in_age_group),
+  critical_case_rate = weighted.mean(critical_case_rate, population_in_age_group),
+  case_fatality_rate = weighted.mean(case_fatality_rate, population_in_age_group)
+  ), by = c('FIPS', 'State', 'County')]
+
+county_case_severity_rates[County == "Santa Clara County"] %>% kable(digits=3) %>% kable_styling()
+```
+
+```{r}
+fwrite(county_case_severity_rates, 'data/county_case_severity_rates_v6.csv')
+fwrite(merged_pop_fat_rate, 'data/county_age_severity_rates_v6.csv')
+
+county_case_severity_rates[State == "California"][order(hospitalizations_per_case, decreasing = TRUE)] %>%
+   kable(digits=3) %>% kable_styling()
+```
+
+
