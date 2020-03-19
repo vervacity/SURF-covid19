@@ -50,13 +50,13 @@ ui <- shinyUI(
                                  uiOutput("state_selector_1"),
                                  uiOutput("county_selector_1"),
                                  hr(),
-                                 h4("Baseline"),
-                                 numericInput("num_cases", "Current Cases (Today)", 138, min = 1),
-                                 numericInput("num_days", "Number of Days to Project Ahead", 55, min = 1),
+                                 h4("User Inputs"),
+                                 numericInput("num_cases", "Current Cases (Today)", 1, min = 1),
+                                 numericInput("num_days", "Number of Days to Project Ahead", 30, min = 1),
                                  numericInput("doubling_time", "Doubling Time (Days)", 6, min = 1, max = 20),
                                  hr(),
-                                 h4("Intervention"),
-                                 p("Doubling times (DT) can be changed to reflect an intervention."),
+                                 h4("Simulation of Intervention"),
+                                 p("To simulate the impact of an intervention, enter a date and a new doubling time."),
                                  fluidRow(
                                    column(6, tags$b("On Day")),
                                    column(6, tags$b("New DT"))
@@ -82,9 +82,13 @@ ui <- shinyUI(
                         width = 3
                       ),
                       mainPanel(
-                        textOutput("text2"),
+                        HTML("<h3> Input the number of COVID-19 cases, the rate at which they spread, and the impact of interventions to 
+                        estimate the number of people requiring hospitalization. <b> This is a model, not a forecast. </b> See Documentation tab for methodology. </h3>"
+                        ),
+                        hr(),
                         textOutput("text1"),
-                        tags$head(tags$style("#text1, #text2 {color: black; font-size: 20px; white-space: pre-wrap;}")),
+                        textOutput("text2"),
+                        tags$head(tags$style("#text2, #text1 {color: black; font-size: 18px; white-space: pre-wrap;}")),
                         br(),
                         tableOutput("table1"),
                         hr(),
@@ -134,7 +138,13 @@ ui <- shinyUI(
              tabPanel("Documentation",
                       fluidPage(
                         mainPanel(
-                          h3(a(href='https://docs.google.com/spreadsheets/d/1pIGNv4EiXOjLXNvIoJUEGy6681Pf3LHbRQzzuFjAtSs/edit#gid=0', "Click here for metholodogy.")),
+                          h3(a(href='https://docs.google.com/spreadsheets/d/1pIGNv4EiXOjLXNvIoJUEGy6681Pf3LHbRQzzuFjAtSs/edit#gid=0', "Click here for metholodogy.",
+                               target = '_blank')),
+                          br(),
+                          h4("Definitions"),
+                          p("Doubling time is defined by the amount of time it takes a population to double in size. In this case, assuming exponential 
+                            growth in the number of COVID-19 cases, we are defining the doubling time as the number of days it takes for cases to double. "),
+                          uiOutput("formula"),
                           br(),
                           h4("References"),
                           a(href="https://www.census.gov/data/datasets/time-series/demo/popest/2010s-counties-detail.html", "[1] County-level data from US Census"),
@@ -208,6 +218,12 @@ server <- function(input, output, session) {
                 multiple = TRUE) #default choice (not required)
   })
   
+  output$formula <- renderUI({
+    withMathJax(sprintf('We define \\(N_{t+1} = N_{t} \\times 2^{\\frac{1}{DT}} \\), 
+                        where \\(N_t \\) is the number of cases at time \\(t\\)
+                        and DT is the doubling time.'))
+  })
+  
   get_county_df <- reactive({
     state <- input$state1
     state_df <- df %>% filter(State == state)
@@ -244,7 +260,7 @@ server <- function(input, output, session) {
     naive_estimations
   })
   
-  output$text1 <- renderText({
+  output$text2 <- renderText({
     req(input$county1)
     county_df <- get_county_df()
     text <- ""
@@ -258,7 +274,7 @@ server <- function(input, output, session) {
         text = paste(text, '. \n', sep = '')
         has_nan <- TRUE
       } else {
-        bed_text = paste(c(county, 'has', num_beds, 'hospital beds. \n'), collapse = " ")
+        bed_text = paste(c(county, 'has', num_beds, 'hospital beds. '), collapse = " ")
         text = paste(text, bed_text, sep = '')
         bed_total <- bed_total + num_beds
       }
@@ -286,9 +302,9 @@ server <- function(input, output, session) {
       first_day_without_beds = min(which(beds_remaining<=0)) - 1
       print(first_day_without_beds)
       if(length(first_day_without_beds > 0) & first_day_without_beds < Inf) {
-        text <- paste(text, 'With the interventions, the number of commulative cases will equal the number of hospital beds within ', first_day_without_beds, " days. \n", sep = "")
+        text <- paste(text, 'With the interventions, the number of cumulative cases will equal the number of hospital beds within ', first_day_without_beds, " days. \n", sep = "")
       } else {
-        text <- paste(text, 'With the interventions, the number of commulative cases will be LESS than the number of hospital beds in ', input$num_days, " days. \n", sep = "")
+        text <- paste(text, 'With the interventions, the number of cumulative cases will be LESS than the number of hospital beds in ', input$num_days, " days. \n", sep = "")
       }
     }
     
@@ -421,7 +437,7 @@ server <- function(input, output, session) {
     
   })
   
-  output$text2 <- renderText({
+  output$text1 <- renderText({
     req(input$county1)
     county_df <- get_county_df()
     
@@ -430,7 +446,7 @@ server <- function(input, output, session) {
       under_60 = sum((county_df %>% filter(age_decade %in% c('0-9','10-19','20-29','30-39','40-49','50-59') & County == county))$population_in_age_group)
       over_60 = sum((county_df %>% filter(age_decade %in% c('60-69', '70-79', '80+') & County == county))$population_in_age_group)
       county_text = paste(c(county, "has", format(under_60, big.mark=","), "people aged 0-59 and",
-                            format(over_60, big.mark=","), "people aged 60+. \n"), collapse = " ")
+                            format(over_60, big.mark=","), "people aged 60+. "), collapse = " ")
       text = paste(text, county_text, sep = '')
     }
     
