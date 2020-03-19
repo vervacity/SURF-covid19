@@ -108,41 +108,41 @@ ui <- shinyUI(
                       )
              ),
              
-             tabPanel("Tuite and Fisman (2020)",
-                      sidebarPanel(
-                        sliderInput("serial_interval", "Serial interval (days)",
-                                    min = 5, max = 10,
-                                    value = 7),
-                        
-                        sliderInput("start_date_outbreak", "Outbreak start date",
-                                    min = ymd('2019-11-01'), max = ymd('2019-12-31'),
-                                    value = ymd('2019-12-01')),
-                        
-                        sliderInput("start_date_control", "Control start date",
-                                    min = ymd('2020-01-01'), max = ymd('2020-01-31'),
-                                    value = ymd('2020-01-15')),
-                        
-                        sliderInput("it0", "Initial number of cases",
-                                    min = 1, max = 40,
-                                    value = 1),
-                        
-                        sliderInput("r0", "Basic reproductive number",
-                                    min = 1.5, max = 4,
-                                    value = 2.3),
-                        
-                        sliderInput("re", "Effective reproductive number with control",
-                                    min = 0.5, max = 3,
-                                    value = 1.5)
-                        
-                        # sliderInput("num_beds", "Number of hospital beds",
-                        #             min = 0, max = 300000,
-                        #             value = 1000)
-                      ),
-                      mainPanel(
-                        plotOutput("plot_tuite_fisman"),
-                        width = 7
-                      )
-             ),
+             # tabPanel("Tuite and Fisman (2020)",
+             #          sidebarPanel(
+             #            sliderInput("serial_interval", "Serial interval (days)",
+             #                        min = 5, max = 10,
+             #                        value = 7),
+             #            
+             #            sliderInput("start_date_outbreak", "Outbreak start date",
+             #                        min = ymd('2019-11-01'), max = ymd('2019-12-31'),
+             #                        value = ymd('2019-12-01')),
+             #            
+             #            sliderInput("start_date_control", "Control start date",
+             #                        min = ymd('2020-01-01'), max = ymd('2020-01-31'),
+             #                        value = ymd('2020-01-15')),
+             #            
+             #            sliderInput("it0", "Initial number of cases",
+             #                        min = 1, max = 40,
+             #                        value = 1),
+             #            
+             #            sliderInput("r0", "Basic reproductive number",
+             #                        min = 1.5, max = 4,
+             #                        value = 2.3),
+             #            
+             #            sliderInput("re", "Effective reproductive number with control",
+             #                        min = 0.5, max = 3,
+             #                        value = 1.5)
+             #            
+             #            # sliderInput("num_beds", "Number of hospital beds",
+             #            #             min = 0, max = 300000,
+             #            #             value = 1000)
+             #          ),
+             #          mainPanel(
+             #            plotOutput("plot_tuite_fisman"),
+             #            width = 7
+             #          )
+             # ),
              
              tabPanel("Documentation",
                       fluidPage(
