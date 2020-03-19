@@ -54,6 +54,9 @@ ui <- shinyUI(
                                  numericInput("num_cases", "Current Cases (Today)", 1, min = 1),
                                  sliderInput("num_days", "Number of Days to Model Ahead", 30, min = 1, max = 60),
                                  numericInput("doubling_time", "Doubling Time (Days)", 6, min = 1, max = 20),
+                                 numericInput("los_severe", "Length of Stay (Days) for Severe", 11, min = 1, max = 90),
+                                 numericInput("los_critical", "Length of Stay (Days) for Critical", 13, min = 1, max = 90),
+                                 sliderInput("prop_bed_for_covid", "% of Beds for COVID-19 Cases", 50, min = 0, max = 100),
                                  hr(),
                                  h4("Simulation of Intervention"),
                                  p("To simulate the impact of an intervention, enter a date and a new doubling time."),
@@ -82,8 +85,8 @@ ui <- shinyUI(
                         width = 3
                       ),
                       mainPanel(
-                        HTML("<h3> Input the number of COVID-19 cases, the rate at which they spread, and the impact of interventions to 
-                        estimate the number of people requiring hospitalization. <b> This is a model, not a forecast. </b> See Documentation tab for methodology. </h3>"
+                        HTML("<h3>Input the number of COVID-19 cases, the rate at which they spread, and the impact of an intervention to 
+                        estimate the number of people requiring hospitalization. <b>This is a model, not a forecast.</b> See the Documentation tab for methodology.</h3>"
                         ),
                         hr(),
                         textOutput("text1"),
@@ -151,6 +154,7 @@ ui <- shinyUI(
                           p("Doubling time is defined by the amount of time it takes a population to double in size. In this case, assuming exponential 
                             growth in the number of COVID-19 cases, we are defining the doubling time as the number of days it takes for cases to double. "),
                           uiOutput("formula"),
+                          HTML('For more details see this <a href="https://www.nejm.org/doi/full/10.1056/NEJMoa2001316">analysis</a> of COVID-19 doubling time.'),
                           br(),
                           h4(a(href='https://docs.google.com/spreadsheets/d/1Fp5bvaTgGde2IQewcaIvmIlpGRCnD20xZuO8nZZDVCM/', "Data",
                                target = '_blank')),
@@ -161,6 +165,10 @@ ui <- shinyUI(
                           a(href="https://hifld-geoplatform.opendata.arcgis.com/datasets/hospitals", "[2] Data on Hospital beds from HIFLD"),
                           br(),
                           a(href="https://www.imperial.ac.uk/media/imperial-college/medicine/sph/ide/gida-fellowships/Imperial-College-COVID19-NPI-modelling-16-03-2020.pdf", "[3] Estimates of the severity of COVID-19 disease by age group"),
+                          br(),
+                          a(href="https://www.nejm.org/doi/full/10.1056/NEJMoa2002032", "[4] 11 day LOS for severe patients and 13 day LOS for critical patients (Table 1)"),
+                          br(),
+                          a(href="https://www.thelancet.com/journals/lancet/article/PIIS0140-6736(20)30566-3/fulltext", "[5] 11 day LOS for all patients (Table 2)"),
                           br(),
                           br(),
                           strong("Contact:"),
@@ -247,7 +255,7 @@ server <- function(input, output, session) {
     county_df <- get_county_df()
     num_cases <- input$num_cases
     doubling_time <- input$doubling_time
-
+    
     combined_counties_severity_rates <- county_df %>% group_by(age_decade) %>% 
       summarise(
         combined_population_in_age_group = sum(population_in_age_group),
@@ -263,7 +271,7 @@ server <- function(input, output, session) {
       mutate(estimated_fatal_cases = estimated_cases*wtd_case_fatality_rate) %>% 
       mutate(estimated_critical_cases = estimated_cases*wtd_critical_case_rate) %>% 
       mutate(estimated_severe_cases = estimated_cases*wtd_severe_cases_rate)
-      
+    
     naive_estimations
   })
   
@@ -274,30 +282,33 @@ server <- function(input, output, session) {
     bed_total <- 0
     has_nan <- FALSE
     for (county in input$county1) {
-      num_beds = (df %>% filter(County == county) %>% summarize(num_beds = max(num_beds)))[[1]]
+      num_beds = (df %>% filter(County == county) %>% summarize(num_beds = max(num_beds)))[[1]]*input$prop_bed_for_covid/100
       if (is.na(num_beds)) {
         bed_text = paste("We did not find information on the number of beds in", county, sep = " ")
         text = paste(text, bed_text, sep = '')
-        text = paste(text, '. Add surrounding counties to see the combined results. \n', sep = '')
+        text = paste(text, '. Add surrounding counties to see the combined results.', sep = '')
         has_nan <- TRUE
       } else {
-        bed_text = paste(c(county, 'has', num_beds, 'hospital beds. '), collapse = " ")
+        bed_text = paste(c(county, 'has', round(num_beds), 'hospital beds for COVID-19 cases. '), collapse = " ")
         text = paste(text, bed_text, sep = '')
-        bed_total <- bed_total + num_beds
+        bed_total <- bed_total + num_beds * input$prop_bed_for_covid
       }
     }
     
     naive_estimations <- get_naive_estimations()
     sum_cases <- sum(naive_estimations['estimated_critical_cases']) + sum(naive_estimations['estimated_severe_cases']) 
-    days_to_fill <- ceiling(input$doubling_time*log(bed_total/sum_cases, base = 2))
     
-    if (has_nan) {
-      if (length(input$county1) > 1) {
-        text <- paste(c(text, "Assuming a total of", bed_total, "hospital beds and no interventions, the number of cumulative cases will equal the number of hospital beds within",
-                        days_to_fill, "days. \n"), collapse = " ")
+    # calculate days to fill beds given no interventions
+    hospitalizations_without_intervention = get_case_numbers()[['hospitalizations_without_intervention']]
+    beds_remaining = bed_total - hospitalizations_without_intervention
+    days_to_fill = min(which(beds_remaining<=0)) - 1
+    
+    if (bed_total > 0) {
+      if(days_to_fill < Inf) {
+        text <- paste(c(text, '\nAssuming no interventions, the number of hospitalizations will equal the number of hospital beds within ', days_to_fill, " days. \n"), collapse = "")
+      } else {
+        text <- paste(text, '\nAssuming no interventions, the number of hospitalizations will be LESS than the number of hospital beds in ', input$num_days, " days. \n", sep = "")
       }
-    } else {
-      text <- paste(c(text, 'Assuming no interventions, the number of cumulative cases will equal the number of hospital beds within ', days_to_fill, " days. \n"), collapse = "")
     }
     
     dt_changes = get_dt_changes()
@@ -309,9 +320,9 @@ server <- function(input, output, session) {
       first_day_without_beds = min(which(beds_remaining<=0)) - 1
       
       if(length(first_day_without_beds > 0) & first_day_without_beds < Inf) {
-        text <- paste(text, 'With the interventions, the number of cumulative cases will equal the number of hospital beds within ', first_day_without_beds, " days. \n", sep = "")
+        text <- paste(text, 'With the interventions, the number of hospitalizations will equal the number of hospital beds within ', first_day_without_beds, " days. \n", sep = "")
       } else {
-        text <- paste(text, 'With the interventions, the number of cumulative cases will be LESS than the number of hospital beds in ', input$num_days, " days. \n", sep = "")
+        text <- paste(text, 'With the interventions, the number of hospitalizations will be LESS than the number of hospital beds in ', input$num_days, " days. \n", sep = "")
       }
     }
     
@@ -344,11 +355,24 @@ server <- function(input, output, session) {
     return(dt_changes)
   })
   
+  # Function to get hospitalizations from cumulative cases, with projection backwards from current cases to prevent jump at day LOS
+  get_hospitalizations = function(cumulative_cases, los, doubling_time) {
+    
+    # Project cases backwards LOS days
+    cum_cases_w_backwards_projection = c(rep(cumulative_cases[1], los), cumulative_cases)
+    for (i in los:1) {
+      cum_cases_w_backwards_projection[i] = cum_cases_w_backwards_projection[i+1]/2^(1/doubling_time)
+    }
+    
+    # Calculate hospitalizations from day 1 through projection period
+    return(cum_cases_w_backwards_projection[(los+1):length(cum_cases_w_backwards_projection)] - cum_cases_w_backwards_projection[1:length(cumulative_cases)])
+  }
+  
   get_case_numbers <- reactive({
     req(input$county1)
     
     naive_estimations <- get_naive_estimations()
-
+    
     n_days <- input$num_days
     cases <- rep(input$num_cases, n_days+1)
     fatal_cases <- rep(sum(naive_estimations['estimated_fatal_cases']), n_days+1)
@@ -357,6 +381,22 @@ server <- function(input, output, session) {
     
     doubling_time <- input$doubling_time
     
+    
+    # cases without intervention
+    critical_without_intervention = critical_cases
+    severe_without_intervention = severe_cases
+    for (i in 1:n_days) {
+      critical_without_intervention[i+1] = critical_without_intervention[i]*2^(1/doubling_time)
+      severe_without_intervention[i+1] = severe_without_intervention[i]*2^(1/doubling_time)
+    }
+    
+    # number hospitalized at any one time (without intervention)
+    #critical_without_intervention = critical_without_intervention - c(rep(0, input$los_critical), critical_without_intervention)[1:length(critical_without_intervention)]
+    critical_without_intervention = get_hospitalizations(critical_without_intervention, input$los_critical, doubling_time)
+    #severe_without_intervention = severe_without_intervention - c(rep(0, input$los_severe), severe_without_intervention)[1:length(severe_without_intervention)]
+    severe_without_intervention = get_hospitalizations(severe_without_intervention, input$los_severe, doubling_time)
+    
+    # cases with intervention
     dt_changes = c()
     if (input$submit != 0) {
       dt_changes = get_dt_changes()
@@ -373,11 +413,21 @@ server <- function(input, output, session) {
       fatal_cases[i+1] = fatal_cases[i]*2^(1/doubling_time)
       critical_cases[i+1] = critical_cases[i]*2^(1/doubling_time)
       severe_cases[i+1] = severe_cases[i]*2^(1/doubling_time)
-    }      
+    }
+    
+    # number hospitalized at any one time (with intervention)
+    #critical_cases = critical_cases - c(rep(0, input$los_critical), critical_cases)[1:length(critical_cases)]
+    critical_cases = get_hospitalizations(critical_cases, input$los_critical, doubling_time)
+    #severe_cases = severe_cases - c(rep(0, input$los_severe), severe_cases)[1:length(severe_cases)]
+    severe_cases = get_hospitalizations(severe_cases, input$los_severe, doubling_time)
     
     total_population <- sum(naive_estimations$combined_population_in_age_group)
     if ((severe_cases[n_days+1] + critical_cases[n_days + 1]) < 0.25*total_population) {
-      return_cases <- list("fatal" = fatal_cases, "critical" = critical_cases, "severe" = severe_cases)
+      return_cases <- list(
+        "fatal" = fatal_cases, 
+        "critical" = critical_cases, 
+        "severe" = severe_cases,
+        "hospitalizations_without_intervention" = critical_without_intervention + severe_without_intervention)
       return(return_cases)
     } else {
       stop(safeError(
@@ -395,7 +445,7 @@ server <- function(input, output, session) {
     critical_cases <- case_numbers$critical
     severe_cases <- case_numbers$severe
     
-    num_beds <- sum((get_county_df() %>% group_by(County) %>% summarize(num_beds = max(num_beds)))$num_beds)
+    num_beds <- sum((get_county_df() %>% group_by(County) %>% summarize(num_beds = max(num_beds)))$num_beds)*input$prop_bed_for_covid/100
     n_days <- input$num_days
     day_list <- c(0:n_days)
     
@@ -405,14 +455,14 @@ server <- function(input, output, session) {
       date = Sys.Date() + day_list,
       estimated_hospitalizations = critical_cases + severe_cases,
       severe_cases = severe_cases,
-      critical_cases = critical_cases,
-      fatal_cases = fatal_cases
+      critical_cases = critical_cases#,
+      #fatal_cases = fatal_cases
     ), id.vars = c('date'))
     
-    chart_data[chart_data$variable == 'estimated_hospitalizations', 'variable'] <-  'Cumulative Hospitalizations'
-    chart_data[chart_data$variable == 'severe_cases', 'variable'] <-  'Cumulative Severe Cases'
-    chart_data[chart_data$variable == 'critical_cases', 'variable'] <-  'Cumulative Critical Cases'
-    chart_data[chart_data$variable == 'fatal_cases', 'variable'] <-  'Cumulative Fatal Cases'
+    chart_data[chart_data$variable == 'estimated_hospitalizations', 'variable'] <-  'Hospitalizations (Severe + Critical Cases)'
+    chart_data[chart_data$variable == 'severe_cases', 'variable'] <-  'Severe Cases'
+    chart_data[chart_data$variable == 'critical_cases', 'variable'] <-  'Critical Cases'
+    #chart_data[chart_data$variable == 'fatal_cases', 'variable'] <-  'Cumulative Fatal Cases'
     
     chart_data[, value := round(value)]
     
@@ -423,8 +473,9 @@ server <- function(input, output, session) {
       scale_linetype_manual(values=c("solid", "solid", "solid", "dashed")) +
       scale_size_manual(values=c(0.75, 0.5, 0.5, 0.25)) +
       theme_minimal() +
-      ylab("") + xlab('Date')  +
-      coord_cartesian(ylim=c(0, max(critical_cases + severe_cases)))
+      ylab("Number of cases") + xlab('Date')  +
+      coord_cartesian(ylim=c(0, max(critical_cases + severe_cases))) +
+      ggtitle("COVID-19 cases requiring hospitalization")
     
     if (input$submit != 0) {
       dt_changes = get_dt_changes()
@@ -438,8 +489,8 @@ server <- function(input, output, session) {
     if(!is.na(num_beds)) {
       gp = gp +
         geom_hline(yintercept = num_beds, linetype = "dashed", color = 'grey') + 
-        annotate("text", x = Sys.Date() + 0.5*n_days, y = num_beds*0.95, label = "Number of Hospital Beds", vjust=1, hjust=0, color = 'grey')
-        # + coord_cartesian(ylim=c(0, pmax(num_beds*1.05, max(critical_cases + severe_cases))))
+        annotate("text", x = Sys.Date() + 0.5*n_days, y = num_beds*0.95, label = "Number of Hospital Beds for COVID Patients", vjust=1, hjust=0, color = 'grey') +
+        coord_cartesian(ylim=c(0, pmax(num_beds*1.05, max(critical_cases + severe_cases))))
     }
     
     
@@ -501,7 +552,7 @@ server <- function(input, output, session) {
         hospitalization_rate = 
           100*sum(population_in_age_group*hospitalizations_per_case)/sum(population_in_age_group)) %>% 
       rename(state = State, fips = FIPS)
-
+    
     geom_args <- list()
     geom_args[["color"]] <- "black"
     geom_args[["size"]] <- 0.2
@@ -600,5 +651,3 @@ server <- function(input, output, session) {
 
 
 shinyApp(ui, server)
-
-
