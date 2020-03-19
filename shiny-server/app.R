@@ -489,7 +489,7 @@ server <- function(input, output, session) {
     if(!is.na(num_beds)) {
       gp = gp +
         geom_hline(yintercept = num_beds, linetype = "dashed", color = 'grey') + 
-        annotate("text", x = Sys.Date() + 0.5*n_days, y = num_beds*0.95, label = "Number of Hospital Beds", vjust=1, hjust=0, color = 'grey') +
+        annotate("text", x = Sys.Date() + 0.5*n_days, y = num_beds*0.95, label = "Number of Hospital Beds for COVID Patients", vjust=1, hjust=0, color = 'grey') +
         coord_cartesian(ylim=c(0, pmax(num_beds*1.05, max(critical_cases + severe_cases))))
     }
     
