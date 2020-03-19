@@ -33,7 +33,8 @@ library(usmap)
 df <- read.csv('county_age_severity_rates_v6.csv', stringsAsFactors = FALSE)
 df$County <- gsub('city', 'City', df$County)
 bed_df <- read.csv('Hospitals.csv', stringsAsFactors = FALSE) %>%
-  filter(BEDS != -999, STATE != 'PR') %>%
+  filter(BEDS != -999, STATE != 'PR') %>% 
+  filter(TYPE %in% c('CRITICAL ACCESS', 'MILITARY', 'SPECIAL', 'GENERAL ACUTE CARE')) %>% 
   select(COUNTYFIPS, BEDS) %>% rename(FIPS = COUNTYFIPS, beds = BEDS)
 bed_df <- bed_df %>% group_by(FIPS) %>%
   summarize(num_beds = sum(beds)) %>% mutate(FIPS = as.numeric(FIPS))
@@ -51,7 +52,7 @@ ui <- shinyUI(
                                  uiOutput("county_selector_1"),
                                  hr(),
                                  h4("User Inputs"),
-                                 numericInput("num_cases", "Current Cases (Today)", 1, min = 1),
+                                 numericInput("num_cases", "Total Confirmed Cases (as of today)", 1, min = 1),
                                  sliderInput("num_days", "Number of Days to Model Ahead", 30, min = 1, max = 60),
                                  numericInput("doubling_time", "Doubling Time (Days)", 6, min = 1, max = 20),
                                  numericInput("los_severe", "Length of Stay (Days) for Severe", 11, min = 1, max = 90),
@@ -173,12 +174,15 @@ ui <- shinyUI(
                           br(),
                           strong("Contact:"),
                           img(src = "email.png", height = 40, width = 'auto'),
+                          br(),
+                          p("Questions or Update Requests: surfcovid19@gmail.com"),
                           hr(),
                           strong("Created by:"), 
-                          p("Johannes Opsahl Ferstad, Angela Gu, Raymond Ye Lee, Isha Thapa, Kevin Schulman, David Scheinker"),
+                          p("Johannes Opsahl Ferstad, Angela Gu, Raymond Ye Lee, Isha Thapa, Alejandro Martinez, Andy Shin, Kevin Schulman, David Scheinker"),
                           br(),
                           img(src = "SURF.png", height = 60, width = 'auto'),
-                          img(src = "CERC.png", height = 60, width = 'auto')
+                          img(src = "CERC.png", height = 60, width = 'auto'),
+                          img(src = "matrixds_logo.png", height = 60, width = 'auto'),
                         )
                       )
              )
@@ -289,7 +293,7 @@ server <- function(input, output, session) {
         text = paste(text, '. Add surrounding counties to see the combined results.', sep = '')
         has_nan <- TRUE
       } else {
-        bed_text = paste(c(county, 'has', round(num_beds), 'hospital beds for COVID-19 cases. '), collapse = " ")
+        bed_text = paste(c("Assuming", paste0(toString(input$prop_bed_for_covid), "%"), "of beds available,", county, 'has', round(num_beds), 'hospital beds for COVID-19 cases. Includes general (non-pediatric), government, and specialty hospitals - see documentation. Modify non-COVID occupancy % below.'), collapse = " ")
         text = paste(text, bed_text, sep = '')
         bed_total <- bed_total + num_beds * input$prop_bed_for_covid
       }
@@ -300,7 +304,7 @@ server <- function(input, output, session) {
     
     # calculate days to fill beds given no interventions
     hospitalizations_without_intervention = get_case_numbers()[['hospitalizations_without_intervention']]
-    beds_remaining = bed_total - hospitalizations_without_intervention
+    beds_remaining = num_beds - hospitalizations_without_intervention
     days_to_fill = min(which(beds_remaining<=0)) - 1
     
     if (bed_total > 0) {
@@ -469,8 +473,8 @@ server <- function(input, output, session) {
     gp = ggplot(chart_data,
                 aes(x=date, y=value, group=variable, text = sprintf("date:  %s \n cases: %i", date, value))) +
       geom_line(aes(linetype = variable, size = variable, color = variable)) +  guides(linetype=FALSE) + guides(size=FALSE) +
-      scale_color_manual(values=c("black", "dodgerblue", "red", "purple")) +
-      scale_linetype_manual(values=c("solid", "solid", "solid", "dashed")) +
+      scale_color_manual(values=c("black", "dodgerblue", "red")) +
+      scale_linetype_manual(values=c("solid", "solid", "solid")) +
       scale_size_manual(values=c(0.75, 0.5, 0.5, 0.25)) +
       theme_minimal() +
       ylab("Number of cases") + xlab('Date')  +
@@ -482,15 +486,14 @@ server <- function(input, output, session) {
       days <- dt_changes[c(FALSE, TRUE)]
       for (i in days) {
         gp = gp +
-          geom_vline(xintercept = as.numeric(Sys.Date() + i), color = 'grey', linetype = 'dashed')
+          geom_vline(xintercept = as.numeric(Sys.Date() + i), color = 'grey', linetype = 'dashed') 
       }
     }
     
     if(!is.na(num_beds)) {
       gp = gp +
         geom_hline(yintercept = num_beds, linetype = "dashed", color = 'grey') + 
-        annotate("text", x = Sys.Date() + 0.5*n_days, y = num_beds*0.95, label = "Number of Hospital Beds for COVID Patients", vjust=1, hjust=0, color = 'grey') +
-        coord_cartesian(ylim=c(0, pmax(num_beds*1.05, max(critical_cases + severe_cases))))
+        annotate("text", x = Sys.Date() + 0.5*n_days, y = num_beds*0.95, label = "Number of Hospital Beds for COVID Patients", vjust=1, hjust=0, color = 'grey')
     }
     
     
