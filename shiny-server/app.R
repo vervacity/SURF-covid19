@@ -52,7 +52,7 @@ ui <- shinyUI(
                                  hr(),
                                  h4("User Inputs"),
                                  numericInput("num_cases", "Current Cases (Today)", 1, min = 1),
-                                 numericInput("num_days", "Number of Days to Project Ahead", 30, min = 1),
+                                 sliderInput("num_days", "Number of Days to Model Ahead", 30, min = 1, max = 60),
                                  numericInput("doubling_time", "Doubling Time (Days)", 6, min = 1, max = 20),
                                  hr(),
                                  h4("Simulation of Intervention"),
@@ -278,7 +278,7 @@ server <- function(input, output, session) {
       if (is.na(num_beds)) {
         bed_text = paste("We did not find information on the number of beds in", county, sep = " ")
         text = paste(text, bed_text, sep = '')
-        text = paste(text, '. \n', sep = '')
+        text = paste(text, '. Add surrounding counties to see the combined results. \n', sep = '')
         has_nan <- TRUE
       } else {
         bed_text = paste(c(county, 'has', num_beds, 'hospital beds. '), collapse = " ")
@@ -348,6 +348,7 @@ server <- function(input, output, session) {
     req(input$county1)
     
     naive_estimations <- get_naive_estimations()
+
     n_days <- input$num_days
     cases <- rep(input$num_cases, n_days+1)
     fatal_cases <- rep(sum(naive_estimations['estimated_fatal_cases']), n_days+1)
@@ -374,9 +375,16 @@ server <- function(input, output, session) {
       severe_cases[i+1] = severe_cases[i]*2^(1/doubling_time)
     }      
     
-    return_cases <- list("fatal" = fatal_cases, "critical" = critical_cases, "severe" = severe_cases)
-    return(return_cases)
-    
+    total_population <- sum(naive_estimations$combined_population_in_age_group)
+    if ((severe_cases[n_days+1] + critical_cases[n_days + 1]) < 0.25*total_population) {
+      return_cases <- list("fatal" = fatal_cases, "critical" = critical_cases, "severe" = severe_cases)
+      return(return_cases)
+    } else {
+      stop(safeError(
+        "Model is not valid for the input values relative to the population size. 
+      Please reduce the initial number, the days to model, or increase doubling time."
+      ))
+    }
   })
   
   output$plot1 <- renderPlotly({
