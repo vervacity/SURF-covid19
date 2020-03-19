@@ -293,9 +293,9 @@ server <- function(input, output, session) {
         text = paste(text, '. Add surrounding counties to see the combined results.', sep = '')
         has_nan <- TRUE
       } else {
-        bed_text = paste(c("Assuming", paste0(toString(input$prop_bed_for_covid), "%"), "of beds available,", county, 'has', round(num_beds), 'hospital beds for COVID-19 cases. Includes general (non-pediatric), government, and specialty hospitals - see documentation. Modify non-COVID occupancy % below.'), collapse = " ")
+        bed_text = paste(c("Assuming", paste0(toString(input$prop_bed_for_covid), "%"), "of beds available,", county, 'has', round(num_beds), 'hospital beds for COVID-19 cases. Includes general (non-pediatric), government, and specialty hospitals - see documentation. Modify COVID occupancy % below.'), collapse = " ")
         text = paste(text, bed_text, sep = '')
-        bed_total <- bed_total + num_beds * input$prop_bed_for_covid
+        bed_total <- bed_total + num_beds
       }
     }
     
