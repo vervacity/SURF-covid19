@@ -99,6 +99,12 @@ ui <- shinyUI(
                       )
              ),
              
+             tabPanel("Nationwide Heatmap",
+                      mainPanel(
+                        img(src = "usmap.png")
+                      )
+             ),
+             
              tabPanel("Tuite and Fisman (2020)",
                       sidebarPanel(
                         sliderInput("serial_interval", "Serial interval (days)",
@@ -145,6 +151,9 @@ ui <- shinyUI(
                           p("Doubling time is defined by the amount of time it takes a population to double in size. In this case, assuming exponential 
                             growth in the number of COVID-19 cases, we are defining the doubling time as the number of days it takes for cases to double. "),
                           uiOutput("formula"),
+                          br(),
+                          h4(a(href='https://docs.google.com/spreadsheets/d/1Fp5bvaTgGde2IQewcaIvmIlpGRCnD20xZuO8nZZDVCM/', "Data",
+                               target = '_blank')),
                           br(),
                           h4("References"),
                           a(href="https://www.census.gov/data/datasets/time-series/demo/popest/2010s-counties-detail.html", "[1] County-level data from US Census"),
@@ -238,9 +247,7 @@ server <- function(input, output, session) {
     county_df <- get_county_df()
     num_cases <- input$num_cases
     doubling_time <- input$doubling_time
-    
-    print(county_df)
-    
+
     combined_counties_severity_rates <- county_df %>% group_by(age_decade) %>% 
       summarise(
         combined_population_in_age_group = sum(population_in_age_group),
@@ -300,7 +307,7 @@ server <- function(input, output, session) {
       intervention_hospitalizations = cases_w_interventions$critical + cases_w_interventions$severe
       beds_remaining = bed_total - intervention_hospitalizations
       first_day_without_beds = min(which(beds_remaining<=0)) - 1
-      print(first_day_without_beds)
+      
       if(length(first_day_without_beds > 0) & first_day_without_beds < Inf) {
         text <- paste(text, 'With the interventions, the number of cumulative cases will equal the number of hospital beds within ', first_day_without_beds, " days. \n", sep = "")
       } else {
@@ -486,7 +493,7 @@ server <- function(input, output, session) {
         hospitalization_rate = 
           100*sum(population_in_age_group*hospitalizations_per_case)/sum(population_in_age_group)) %>% 
       rename(state = State, fips = FIPS)
-    
+
     geom_args <- list()
     geom_args[["color"]] <- "black"
     geom_args[["size"]] <- 0.2
