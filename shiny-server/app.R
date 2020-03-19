@@ -172,7 +172,7 @@ ui <- shinyUI(
                           br(),
                           br(),
                           strong("Contact:"),
-                          img(src = "email.png", height = 40, width = 'auto'),
+                          img(src = "email.png", height = 22, width = 'auto'),
                           hr(),
                           strong("Created by:"), 
                           p("Johannes Opsahl Ferstad, Angela Gu, Raymond Ye Lee, Isha Thapa, Alejandro Martinez, Andy Shin, Kevin Schulman, David Scheinker"),
