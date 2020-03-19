@@ -168,6 +168,8 @@ ui <- shinyUI(
                           br(),
                           a(href="https://www.nejm.org/doi/full/10.1056/NEJMoa2002032", "[4] 11 day LOS for severe patients and 13 day LOS for critical patients (Table 1)"),
                           br(),
+                          a(href="https://www.thelancet.com/journals/lancet/article/PIIS0140-6736(20)30566-3/fulltext", "[5] 11 day LOS for all patients (Table 2)"),
+                          br(),
                           br(),
                           strong("Contact:"),
                           img(src = "email.png", height = 40, width = 'auto'),
