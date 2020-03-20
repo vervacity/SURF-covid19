@@ -38,8 +38,8 @@ cond_rates  %>% kable() %>% kable_styling()
 
 **Data source:**
 
-Census County Population by Characteristics: 2010-2018 
-(https://www.census.gov/data/datasets/time-series/demo/popest/2010s-counties-detail.html?)
+2014-2018 ACS 5-year Estimates, pulled from NHGIS
+(https://www.census.gov/programs-surveys/acs/technical-documentation/table-and-geography-changes/2018/5-year.html)
 
 Using 2018 population estimates. 
 
