@@ -45,7 +45,7 @@ Using 2018 population estimates.
 
 
 ```{r}
-age_buckets_by_county = fread('data/county_age_populations_v5.csv')
+age_buckets_by_county = fread('data/county_age_populations_acs.csv')
 age_buckets_by_county[CTYNAME == "Santa Clara County"]  %>% kable() %>% kable_styling()
 ```
 
