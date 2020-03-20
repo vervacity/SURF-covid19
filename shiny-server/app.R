@@ -235,6 +235,8 @@ server <- function(input, output, session) {
       numericInput("num_cases", "Total Confirmed Cases (as of today)", 1, min = 1)
     } else {
       num_cases <- sum((get_county_df() %>% group_by(County) %>% summarize(num_cases = max(Cases)) %>% filter(!is.na(num_cases)))$num_cases)
+      if (is.na(num_cases)) {num_cases <- 1}
+      num_cases <- max(num_cases, 1)
       numericInput("num_cases", "Total Confirmed Cases (as of today)", num_cases, min = 1)
     }
   })
