@@ -242,7 +242,10 @@ server <- function(input, output, session) {
   })
     
   observeEvent(input$reset, {
-    updateNumericInput(session, "num_cases", value = 1)
+    num_cases <- sum((get_county_df() %>% group_by(County) %>% summarize(num_cases = max(Cases)) %>% filter(!is.na(num_cases)))$num_cases)
+    if (is.na(num_cases)) {num_cases <- 1}
+    num_cases <- max(num_cases, 1)
+    updateNumericInput(session, "num_cases", value = num_cases)
     updateSliderInput(session, "num_days", value = 30)
     updateNumericInput(session, "doubling_time", value = 6)
     updateNumericInput(session, "los_severe", value = 11)
