@@ -317,7 +317,6 @@ server <- function(input, output, session) {
     
     dt_changes = get_dt_changes()
     if(length(dt_changes) > 0 & bed_total > 0) {
-      message("ninja")
       cases_w_interventions <- get_case_numbers()
       intervention_hospitalizations = cases_w_interventions$critical + cases_w_interventions$severe
       beds_remaining = bed_total - intervention_hospitalizations
@@ -457,9 +456,9 @@ server <- function(input, output, session) {
     
     chart_data = melt(data.table(
       date = Sys.Date() + day_list,
-      estimated_hospitalizations = critical_cases + severe_cases,
-      severe_cases = severe_cases,
-      critical_cases = critical_cases#,
+      estimated_hospitalizations = round(critical_cases) + round(severe_cases),
+      severe_cases = round(severe_cases),
+      critical_cases = round(critical_cases)#,
       #fatal_cases = fatal_cases
     ), id.vars = c('date'))
     
@@ -467,8 +466,6 @@ server <- function(input, output, session) {
     chart_data[chart_data$variable == 'severe_cases', 'variable'] <-  'Severe Cases'
     chart_data[chart_data$variable == 'critical_cases', 'variable'] <-  'Critical Cases'
     #chart_data[chart_data$variable == 'fatal_cases', 'variable'] <-  'Cumulative Fatal Cases'
-    
-    chart_data[, value := round(value)]
     
     gp = ggplot(chart_data,
                 aes(x=date, y=value, group=variable, text = sprintf("date:  %s \n cases: %i", date, value))) +
@@ -486,7 +483,9 @@ server <- function(input, output, session) {
       days <- dt_changes[c(FALSE, TRUE)]
       for (i in days) {
         gp = gp +
-          geom_vline(xintercept = as.numeric(Sys.Date() + i), color = 'grey', linetype = 'dashed') 
+          geom_vline(xintercept = as.numeric(Sys.Date() + i), color = 'grey', linetype = 'dashed') +
+          annotate("text", x = Sys.Date() + i, y = max(critical_cases + severe_cases), color = 'grey', 
+                   label = "Intervention")
       }
     }
     
