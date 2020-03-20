@@ -38,7 +38,12 @@ bed_df <- read.csv('Hospitals.csv', stringsAsFactors = FALSE) %>%
   select(COUNTYFIPS, BEDS) %>% rename(FIPS = COUNTYFIPS, beds = BEDS)
 bed_df <- bed_df %>% group_by(FIPS) %>%
   summarize(num_beds = sum(beds)) %>% mutate(FIPS = as.numeric(FIPS))
+county_cases <- read.csv("https://static.usafacts.org/public/data/covid-19/covid_confirmed_usafacts.csv")
+county_cases <- county_cases[, c(1,2, ncol(county_cases))]
+county_cases <- county_cases %>% rename_at(vars(colnames(county_cases)), ~ c("FIPS", 'County', 'Cases')) %>% 
+  filter(FIPS != 0) %>% mutate(FIPS = as.numeric(FIPS)) %>% select(FIPS, Cases)
 df <- left_join(df, bed_df, by = 'FIPS')
+df <- left_join(df, county_cases, by = 'FIPS')
 
 ui <- shinyUI(
   
@@ -52,12 +57,13 @@ ui <- shinyUI(
                                  uiOutput("county_selector_1"),
                                  hr(),
                                  h4("User Inputs"),
-                                 numericInput("num_cases", "Total Confirmed Cases (as of today)", 1, min = 1),
+                                 uiOutput("num_cases"),
                                  sliderInput("num_days", "Number of Days to Model Ahead", 30, min = 1, max = 60),
                                  numericInput("doubling_time", "Doubling Time (Days)", 6, min = 1, max = 20),
                                  numericInput("los_severe", "Length of Stay (Days) for Severe", 11, min = 1, max = 90),
                                  numericInput("los_critical", "Length of Stay (Days) for Critical", 13, min = 1, max = 90),
                                  sliderInput("prop_bed_for_covid", "% of Beds for COVID-19 Cases", 50, min = 0, max = 100),
+                                 actionButton("reset", "Reset to default user inputs"),
                                  hr(),
                                  h4("Simulation of Intervention"),
                                  p("To simulate the impact of an intervention, enter a date and a new doubling time."),
@@ -206,37 +212,55 @@ server <- function(input, output, session) {
     
     selectInput(inputId = "county1", #name of input
                 label = "County:", #label displayed in ui
-                choices = sort(unique(data_available)), #calls list of available counties
-                selected = if (input$state1 == 'California') 'Santa Clara County' else sort(unique(data_available)[1]),
+                choices = c('All', sort(unique(data_available))), #calls list of available counties
+                selected = if (input$state1 == 'California') 'Santa Clara County' else sort(unique(data_available)[2]),
                 multiple = TRUE)
   })
+
   
-  output$state_selector_2 <- renderUI({ #creates State select box object called in ui
-    selectInput(inputId = "state1", #name of input
-                label = "State:", #label displayed in ui
-                choices = as.character(sort(unique(df$State))),
-                # calls unique values from the State column in the previously created table
-                selected = input$state1)
+  get_county_df <- reactive({
+    state <- input$state1
+    state_df <- df %>% filter(State == state)
+    counties <- input$county1
+    if (!('All' %in% counties)) {
+      return(state_df %>% filter(County %in% counties))
+    } else {
+      return (state_df)
+    }
+  })
+
+  output$num_cases <- renderUI({
+    req(input$state1)
+    if (is.null(input$county1)) {
+      numericInput("num_cases", "Total Confirmed Cases (as of today)", 1, min = 1)
+    } else {
+      num_cases <- sum((get_county_df() %>% group_by(County) %>% summarize(num_cases = max(Cases)) %>% filter(!is.na(num_cases)))$num_cases)
+      if (is.na(num_cases)) {num_cases <- 1}
+      num_cases <- max(num_cases, 1)
+      numericInput("num_cases", "Total Confirmed Cases (as of today)", num_cases, min = 1)
+    }
+  })
+    
+  observeEvent(input$reset, {
+    num_cases <- sum((get_county_df() %>% group_by(County) %>% summarize(num_cases = max(Cases)) %>% filter(!is.na(num_cases)))$num_cases)
+    if (is.na(num_cases)) {num_cases <- 1}
+    num_cases <- max(num_cases, 1)
+    updateNumericInput(session, "num_cases", value = num_cases)
+    updateSliderInput(session, "num_days", value = 30)
+    updateNumericInput(session, "doubling_time", value = 6)
+    updateNumericInput(session, "los_severe", value = 11)
+    updateNumericInput(session, "los_critical", value = 13)
+    updateSliderInput(session, "prop_bed_for_covid", value = 50)
   })
   
-  output$county_selector_2 <- renderUI({#creates County select box object called in ui
-    
-    data_available = df[df$State == input$state1, "County"]
-    
-    selectInput(inputId = "county1", #name of input
-                label = "County:", #label displayed in ui
-                choices = sort(unique(data_available)), #calls list of available counties
-                selected = input$county1,
-                multiple = TRUE)
-  })
   
-  output$state_selector_3 <- renderUI({ #creates State select box object called in ui
-    selectInput(inputId = "state2", #name of input
-                label = "State:", #label displayed in ui
-                choices = as.character(sort(unique(df$State))),
-                # calls unique values from the State column in the previously created table
-                selected = "California",
-                multiple = TRUE) #default choice (not required)
+  observeEvent(input$clear, {
+    updateNumericInput(session, "day_change_1", value = NA)
+    #updateNumericInput(session, "day_change_2", value = NA)
+    #updateNumericInput(session, "day_change_3", value = NA)
+    updateNumericInput(session, "double_change_1", value = NA)
+    #updateNumericInput(session, "double_change_2", value = NA)
+    #updateNumericInput(session, "double_change_3", value = NA)
   })
   
   output$formula <- renderUI({
@@ -244,16 +268,16 @@ server <- function(input, output, session) {
                         where \\(N_t \\) is the number of cases at time \\(t\\)
                         and \\(DT\\) is the doubling time.'))
   })
-  
-  get_county_df <- reactive({
-    state <- input$state1
-    state_df <- df %>% filter(State == state)
-    counties <- input$county1
-    county_df <- state_df %>%
-      filter(County %in% counties)
-    county_df
+
+  observeEvent(input$clear, {
+    updateNumericInput(session, "day_change_1", value = NA)
+    #updateNumericInput(session, "day_change_2", value = NA)
+    #updateNumericInput(session, "day_change_3", value = NA)
+    updateNumericInput(session, "double_change_1", value = NA)
+    #updateNumericInput(session, "double_change_2", value = NA)
+    #updateNumericInput(session, "double_change_3", value = NA)
   })
-  
+
   get_naive_estimations <- reactive({
     
     county_df <- get_county_df()
@@ -281,22 +305,90 @@ server <- function(input, output, session) {
   
   output$text2 <- renderText({
     req(input$county1)
+    
     county_df <- get_county_df()
-    text <- ""
-    bed_total <- 0
-    has_nan <- FALSE
-    for (county in input$county1) {
-      num_beds = (df %>% filter(County == county) %>% summarize(num_beds = max(num_beds)))[[1]]*input$prop_bed_for_covid/100
-      if (is.na(num_beds)) {
-        bed_text = paste("We did not find information on the number of beds in", county, sep = " ")
-        text = paste(text, bed_text, sep = '')
-        text = paste(text, '. Add surrounding counties to see the combined results.', sep = '')
-        has_nan <- TRUE
-      } else {
-        bed_text = paste(c("Assuming", paste0(toString(input$prop_bed_for_covid), "%"), "of beds available,", county, 'has', round(num_beds), 'hospital beds for COVID-19 cases. Includes general (non-pediatric), government, and specialty hospitals - see documentation. Modify COVID occupancy % below.'), collapse = " ")
-        text = paste(text, bed_text, sep = '')
-        bed_total <- bed_total + num_beds
+    if (!('All' %in% input$county1)) {
+      text <- ""
+      bed_total <- 0
+      
+      county_no_info <- c()
+      county_with_info <- c()
+      for (county in input$county1) {
+        num_beds = (county_df %>% filter(County == county) %>% summarize(num_beds = max(num_beds)))[[1]]*input$prop_bed_for_covid/100
+        if (is.na(num_beds)) {
+          county_no_info <- c(county_no_info, county)
+        } else {
+          county_with_info <- c(county_with_info, county)
+          bed_total <- bed_total + num_beds
+        }
       }
+      
+      if (length(county_with_info) > 0) {
+        text = paste("Assuming", paste0(toString(input$prop_bed_for_covid), "%"), "of beds available, ", collapse = " ")
+      }
+      
+      for (county in county_with_info) {
+        num_beds = (county_df %>% filter(County == county) %>% summarize(num_beds = max(num_beds)))[[1]]*input$prop_bed_for_covid/100
+        bed_text = paste(county, 'has', round(num_beds), 'hospital beds for COVID-19 cases. ', collapse = " ")
+        text = paste(text, bed_text, sep = '')
+      }
+      
+      if (length(county_with_info) > 0) {
+        text = paste(text, 'Includes general (non-pediatric), government, and specialty hospitals - see documentation. Modify COVID occupancy % below. ')
+      }
+      
+      if (length(county_no_info) > 0) {
+        text = paste0(text, "\nWe did not find information on the number of beds in")
+      }
+      temp <- ""
+      for (county in county_no_info) {
+        temp = paste(temp, paste0(county, '/'), sep = '')
+      }
+      temp <- substr(temp, 1, nchar(temp)-1)
+
+      if (length(county_no_info) > 0) {
+        text = paste(text, temp, sep = ' ')
+        text = paste(text, '. Add surrounding counties to see the combined results.', sep = '')
+      }  
+      
+    } else {
+      
+      text <- ""
+      bed_total <- 0
+      
+      county_no_info <- c()
+      county_with_info <- c()
+      counties <- 
+      for (county in unique(county_df$County)) {
+        num_beds <- (county_df %>% filter(County == county) %>% summarize(num_beds = max(num_beds)))[[1]]*input$prop_bed_for_covid/100
+        if (is.na(num_beds)) {
+          county_no_info <- c(county_no_info, county)
+        } else {
+          county_with_info <- c(county_with_info, county)
+          bed_total <- bed_total + num_beds
+        }
+      }
+      
+      if (length(county_with_info) > 0) {
+        text = paste("Assuming", paste0(toString(input$prop_bed_for_covid), "%"), "of beds available,", input$state1, "has", format(round(bed_total), big.mark=","),
+                     "hospital beds for COVID-19 cases.", collapse = " ")
+      }
+
+      if (length(county_with_info) > 0) {
+        text = paste(text, 'Includes general (non-pediatric), government, and specialty hospitals - see documentation. Modify COVID occupancy % below. ')
+      }
+      
+      if (length(county_no_info) > 0) {
+        text = paste0(text, "\nWe did not find information on the number of beds in")
+      }
+      temp <- ""
+      for (county in county_no_info) {
+        temp = paste(temp, paste0(county, '/'), sep = '')
+      }
+      temp <- substr(temp, 1, nchar(temp)-1)
+      if (length(county_no_info) > 0) {
+        text = paste(text, paste0(temp, '.'), sep = ' ')
+      }  
     }
     
     naive_estimations <- get_naive_estimations()
@@ -304,7 +396,7 @@ server <- function(input, output, session) {
     
     # calculate days to fill beds given no interventions
     hospitalizations_without_intervention = get_case_numbers()[['hospitalizations_without_intervention']]
-    beds_remaining = num_beds - hospitalizations_without_intervention
+    beds_remaining = bed_total - hospitalizations_without_intervention
     days_to_fill = min(which(beds_remaining<=0)) - 1
     
     if (bed_total > 0) {
@@ -332,15 +424,54 @@ server <- function(input, output, session) {
     text
     
   })
-  
-  observeEvent(input$clear, {
-    updateNumericInput(session, "day_change_1", value = NA)
-    #updateNumericInput(session, "day_change_2", value = NA)
-    #updateNumericInput(session, "day_change_3", value = NA)
-    updateNumericInput(session, "double_change_1", value = NA)
-    #updateNumericInput(session, "double_change_2", value = NA)
-    #updateNumericInput(session, "double_change_3", value = NA)
+
+  output$text1 <- renderText({
+    req(input$county1)
+    county_df <- get_county_df()
+    
+    if (!('All' %in% input$county1)) {
+      text = ""
+      for (county in input$county1) {
+        under_60 = sum((county_df %>% filter(age_decade %in% c('0-9','10-19','20-29','30-39','40-49','50-59') & County == county))$population_in_age_group)
+        over_60 = sum((county_df %>% filter(age_decade %in% c('60-69', '70-79', '80+') & County == county))$population_in_age_group)
+        county_text = paste(c(county, "has", format(under_60, big.mark=","), "people aged 0-59 and",
+                              format(over_60, big.mark=","), "people aged 60+. "), collapse = " ")
+        text = paste(text, county_text, sep = '')
+      }
+      
+      return(text)
+    } else {
+      text = ""
+      under_60 = sum((county_df %>% filter(age_decade %in% c('0-9','10-19','20-29','30-39','40-49','50-59')))$population_in_age_group)
+      over_60 = sum((county_df %>% filter(age_decade %in% c('60-69', '70-79', '80+')))$population_in_age_group)
+      county_text = paste(c(input$state1, "has", format(under_60, big.mark=","), "people aged 0-59 and",
+                            format(over_60, big.mark=","), "people aged 60+. "), collapse = " ")
+      text = paste(text, county_text, sep = '')
+      return(text)
+    }
   })
+  
+  output$table1 <- renderTable({
+    
+    req(input$county1)
+    
+    county_df <- get_county_df()
+    
+    total_population = sum(county_df['population_in_age_group'])
+    case_mortality_rate <- sum(county_df['case_fatality_rate']*county_df['population_in_age_group'])/total_population
+    case_critical_rate <- sum(county_df['critical_case_rate']*county_df['population_in_age_group'])/total_population
+    case_severe_rate <- sum(county_df['severe_cases_rate']*county_df['population_in_age_group'])/total_population
+    critical_plus_severe <- case_critical_rate + case_severe_rate
+    
+    table <- data.table(" " = c('Population-specific case severity rate<br>(per 100 cases)'),
+                        "Fatality<br>(Subset of Critical)" = c(round(case_mortality_rate*100, digits = 2)),
+                        "Critical" = c(round(case_critical_rate*100, digits = 2)),
+                        "Severe"= c(round(case_severe_rate*100, digits = 2)),
+                        "Hospitalization<br>(Critical + Severe)"= c(round(critical_plus_severe*100, digits = 2)))
+    
+    table
+    
+  }, sanitize.text.function=identity, width = "100%")
   
   get_dt_changes <- reactive({
     n_days = input$num_days
@@ -435,7 +566,7 @@ server <- function(input, output, session) {
     } else {
       stop(safeError(
         "Model is not valid for the input values relative to the population size. 
-      Please reduce the initial number, the days to model, or increase doubling time."
+      Please reduce the initial number; reduce the days to model; or increase the doubling time."
       ))
     }
   })
@@ -447,8 +578,8 @@ server <- function(input, output, session) {
     fatal_cases <- case_numbers$fatal
     critical_cases <- case_numbers$critical
     severe_cases <- case_numbers$severe
-    
-    num_beds <- sum((get_county_df() %>% group_by(County) %>% summarize(num_beds = max(num_beds)))$num_beds)*input$prop_bed_for_covid/100
+
+    num_beds <- round(sum((get_county_df() %>% group_by(County) %>% summarize(num_beds = max(num_beds)) %>% filter(!is.na(num_beds)))$num_beds)*input$prop_bed_for_covid/100)
     n_days <- input$num_days
     day_list <- c(0:n_days)
     
@@ -492,7 +623,7 @@ server <- function(input, output, session) {
     if(!is.na(num_beds)) {
       gp = gp +
         geom_hline(yintercept = num_beds, linetype = "dashed", color = 'grey') + 
-        annotate("text", x = Sys.Date() + 0.5*n_days, y = num_beds*0.95, label = "Number of Hospital Beds for COVID Patients", vjust=1, hjust=0, color = 'grey')
+        annotate("text", x = Sys.Date() + 0.5*n_days, y = num_beds*1.05, label = "Number of Hospital Beds for COVID Patients", vjust=1, hjust=0, color = 'grey')
     }
     
     
@@ -504,44 +635,6 @@ server <- function(input, output, session) {
       config(displayModeBar = F)
     
   })
-  
-  output$text1 <- renderText({
-    req(input$county1)
-    county_df <- get_county_df()
-    
-    text = ""
-    for (county in input$county1) {
-      under_60 = sum((county_df %>% filter(age_decade %in% c('0-9','10-19','20-29','30-39','40-49','50-59') & County == county))$population_in_age_group)
-      over_60 = sum((county_df %>% filter(age_decade %in% c('60-69', '70-79', '80+') & County == county))$population_in_age_group)
-      county_text = paste(c(county, "has", format(under_60, big.mark=","), "people aged 0-59 and",
-                            format(over_60, big.mark=","), "people aged 60+. "), collapse = " ")
-      text = paste(text, county_text, sep = '')
-    }
-    
-    text
-  })
-  
-  output$table1 <- renderTable({
-    
-    req(input$county1)
-    
-    county_df <- get_county_df()
-    
-    total_population = sum(county_df['population_in_age_group'])
-    case_mortality_rate <- sum(county_df['case_fatality_rate']*county_df['population_in_age_group'])/total_population
-    case_critical_rate <- sum(county_df['critical_case_rate']*county_df['population_in_age_group'])/total_population
-    case_severe_rate <- sum(county_df['severe_cases_rate']*county_df['population_in_age_group'])/total_population
-    critical_plus_severe <- case_critical_rate + case_severe_rate
-    
-    table <- data.table(" " = c('Population-specific case severity rate<br>(per 100 cases)'),
-                        "Fatality<br>(Subset of Critical)" = c(round(case_mortality_rate*100, digits = 2)),
-                        "Critical" = c(round(case_critical_rate*100, digits = 2)),
-                        "Severe"= c(round(case_severe_rate*100, digits = 2)),
-                        "Hospitalization<br>(Critical + Severe)"= c(round(critical_plus_severe*100, digits = 2)))
-    
-    table
-    
-  }, sanitize.text.function=identity, width = "100%")
   
   output$plot2 <- renderPlotly({
     
