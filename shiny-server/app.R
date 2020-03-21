@@ -55,11 +55,13 @@ ui <- shinyUI(
                           column(12, 
                                  uiOutput("state_selector_1"),
                                  uiOutput("county_selector_1"),
+                                 HTML("<b>Estimated Doubling Time for Cases Requiring Hospitalization (Days)</b>"),
+                                 p("To generate a forecast, enter a doubling time below."),
+                                 numericInput("doubling_time", NULL, value = NA, min = 1, max = 20),
                                  hr(),
-                                 h4("User Inputs"),
+                                 #h4("User Inputs"),
                                  uiOutput("num_cases"),
                                  sliderInput("num_days", "Number of Days to Model Ahead", 30, min = 1, max = 60),
-                                 numericInput("doubling_time", "Doubling Time (Days)", 6, min = 1, max = 20),
                                  numericInput("los_severe", "Length of Stay (Days) for Severe", 11, min = 1, max = 90),
                                  numericInput("los_critical", "Length of Stay (Days) for Critical", 13, min = 1, max = 90),
                                  sliderInput("prop_bed_for_covid", "% of Beds for COVID-19 Cases", 50, min = 0, max = 100),
@@ -92,13 +94,12 @@ ui <- shinyUI(
                         width = 3
                       ),
                       mainPanel(
-                        HTML("<h3>Input the number of COVID-19 cases, the rate at which they spread, and the impact of an intervention to 
-                        estimate the number of people requiring hospitalization. <b>This is a model, not a forecast.</b> See the Documentation tab for methodology.</h3>"
+                        HTML("<h3>This is a planning tool, not a prediction. To generate a forecast, enter the doubling time for your region (and modify the total confirmed number of COVID-19 cases if necessary). See the Documentation tab for methodology.</h3>"
                         ),
                         hr(),
-                        textOutput("text1"),
-                        textOutput("text2"),
-                        tags$head(tags$style("#text2, #text1 {color: black; font-size: 18px; white-space: pre-wrap;}")),
+                        htmlOutput("text1"),
+                        tags$head(tags$style("ul, li {margin-left: 0.5em; padding-left: 0; font-size: 18px}")),
+                        tags$head(tags$style("li {margin-top: 1em;}")),
                         br(),
                         tableOutput("table1"),
                         hr(),
@@ -171,15 +172,17 @@ ui <- shinyUI(
                           br(),
                           br(),
                           h4("References"),
-                          a(href="https://data.census.gov/", "[1] 2014-2018 ACS 5-Year Estimates from US Census"),
+                          a(href="https://data.census.gov/", "[1] 2014-2018 ACS 5-Year Estimates from US Census", target = '_blank'),
                           br(),
-                          a(href="https://hifld-geoplatform.opendata.arcgis.com/datasets/hospitals", "[2] Data on Hospital beds from HIFLD"),
+                          a(href="https://hifld-geoplatform.opendata.arcgis.com/datasets/hospitals", "[2] Data on Hospital beds from HIFLD", target = '_blank'),
                           br(),
-                          a(href="https://www.imperial.ac.uk/media/imperial-college/medicine/sph/ide/gida-fellowships/Imperial-College-COVID19-NPI-modelling-16-03-2020.pdf", "[3] Estimates of the severity of COVID-19 disease by age group"),
+                          a(href="https://www.imperial.ac.uk/media/imperial-college/medicine/sph/ide/gida-fellowships/Imperial-College-COVID19-NPI-modelling-16-03-2020.pdf", target = '_blank', "[3] Estimates of the severity of COVID-19 disease by age group"),
                           br(),
-                          a(href="https://www.nejm.org/doi/full/10.1056/NEJMoa2002032", "[4] 11 day LOS for severe patients and 13 day LOS for critical patients (Table 1)"),
+                          a(href="https://www.nejm.org/doi/full/10.1056/NEJMoa2002032", target = '_blank', "[4] 11 day LOS for severe patients and 13 day LOS for critical patients (Table 1)"),
                           br(),
-                          a(href="https://www.thelancet.com/journals/lancet/article/PIIS0140-6736(20)30566-3/fulltext", "[5] 11 day LOS for all patients (Table 2)"),
+                          a(href="https://www.thelancet.com/journals/lancet/article/PIIS0140-6736(20)30566-3/fulltext", target = '_blank', "[5] 11 day LOS for all patients (Table 2)"),
+                          br(),
+                          a(href="https://usafacts.org/visualizations/coronavirus-covid-19-spread-map/", target = '_blank', "[6] Default values of cases by county"),
                           br(),
                           br(),
                           br(),
@@ -187,11 +190,13 @@ ui <- shinyUI(
                           img(src = "email2.png", height = 17.5, width = 'auto'),
                           hr(),
                           strong("Created by:"), 
-                          p("Johannes Opsahl Ferstad, Angela Gu, Raymond Ye Lee, Isha Thapa, Alejandro Martinez, Andy Shin, Kevin Schulman, David Scheinker"),
+                          p("Johannes Opsahl Ferstad, Angela Gu, Raymond Ye Lee, Isha Thapa, Alejandro Martinez, Andy Shin, Joshua Salomon, Peter Glynn, Kevin Schulman, David Scheinker"),
+                          strong("For their help, we thank:"),
+                          p("Nigam Shah, Amber Levine, Grace Lee"),
                           br(),
                           img(src = "SURF.png", height = 60, width = 'auto'),
                           img(src = "CERC.png", height = 60, width = 'auto'),
-                          img(src = "matrixds_logo.png", height = 60, width = 'auto'),
+                          img(src = "matrixds_logo.png", height = 60, width = 'auto')
                         )
                       )
              )
@@ -306,14 +311,40 @@ server <- function(input, output, session) {
     naive_estimations
   })
   
-  output$text2 <- renderText({
+  output$text1 <- renderText({
     req(input$county1)
     
+    if(is.na(input$doubling_time)) {
+      return("<span style='color: red;'>Enter a Doubling Time on the left to generate a forecast</span>")
+    }
+    
+    req(input$doubling_time)
     county_df <- get_county_df()
+    
+    text = "<ul>"
+    
+    # Population bullet
     if (!('All' %in% input$county1)) {
-      text <- ""
-      bed_total <- 0
+      for (county in input$county1) {
+        under_60 = sum((county_df %>% filter(age_decade %in% c('0-9','10-19','20-29','30-39','40-49','50-59') & County == county))$population_in_age_group)
+        over_60 = sum((county_df %>% filter(age_decade %in% c('60-69', '70-79', '80+') & County == county))$population_in_age_group)
+        county_text = paste(c(county, "has", format(under_60, big.mark=","), "people aged 0-59 and",
+                              format(over_60, big.mark=","), "people aged 60+. "), collapse = " ")
+        text = paste(text, "<li>", county_text, "</li>", sep = '')
+      }
       
+      
+    } else {
+      under_60 = sum((county_df %>% filter(age_decade %in% c('0-9','10-19','20-29','30-39','40-49','50-59')))$population_in_age_group)
+      over_60 = sum((county_df %>% filter(age_decade %in% c('60-69', '70-79', '80+')))$population_in_age_group)
+      county_text = paste(c(input$state1, "has", format(under_60, big.mark=","), "people aged 0-59 and",
+                            format(over_60, big.mark=","), "people aged 60+. "), collapse = " ")
+      text = paste(text, "<li>", county_text, "</li>", sep = '')
+    }
+    
+    # Hospital Beds bullet
+    if (!('All' %in% input$county1)) {
+      bed_total <- 0
       county_no_info <- c()
       county_with_info <- c()
       for (county in input$county1) {
@@ -327,7 +358,7 @@ server <- function(input, output, session) {
       }
       
       if (length(county_with_info) > 0) {
-        text = paste("Assuming", paste0(toString(input$prop_bed_for_covid), "%"), "of beds available, ", collapse = " ")
+        text = paste(text, "<li>Assuming", paste0(toString(input$prop_bed_for_covid), "%"), "of beds available, ", collapse = " ")
       }
       
       for (county in county_with_info) {
@@ -337,7 +368,7 @@ server <- function(input, output, session) {
       }
       
       if (length(county_with_info) > 0) {
-        text = paste(text, 'Includes general (non-pediatric), government, and specialty hospitals - see documentation. Modify COVID occupancy % below. ')
+        text = paste(text, 'These include general (non-pediatric), government, and specialty hospitals (see documentation). You can modify the % of beds available to COVID patients in the inputs.')
       }
       
       if (length(county_no_info) > 0) {
@@ -352,11 +383,12 @@ server <- function(input, output, session) {
       if (length(county_no_info) > 0) {
         text = paste(text, temp, sep = ' ')
         text = paste(text, '. Add surrounding counties to see the combined results.', sep = '')
-      }  
+      }
+      
+      text = paste0(text, "</li>")
       
     } else {
       
-      text <- ""
       bed_total <- 0
       
       county_no_info <- c()
@@ -373,7 +405,7 @@ server <- function(input, output, session) {
       }
       
       if (length(county_with_info) > 0) {
-        text = paste("Assuming", paste0(toString(input$prop_bed_for_covid), "%"), "of beds available,", input$state1, "has", format(round(bed_total), big.mark=","),
+        text = paste("<li>", "Assuming", paste0(toString(input$prop_bed_for_covid), "%"), "of beds available,", input$state1, "has", format(round(bed_total), big.mark=","),
                      "hospital beds for COVID-19 cases.", collapse = " ")
       }
 
@@ -382,7 +414,7 @@ server <- function(input, output, session) {
       }
       
       if (length(county_no_info) > 0) {
-        text = paste0(text, "\nWe did not find information on the number of beds in")
+        text = paste0(text, "We did not find information on the number of beds in")
       }
       temp <- ""
       for (county in county_no_info) {
@@ -391,8 +423,11 @@ server <- function(input, output, session) {
       temp <- substr(temp, 1, nchar(temp)-1)
       if (length(county_no_info) > 0) {
         text = paste(text, paste0(temp, '.'), sep = ' ')
-      }  
+      }
+      text = paste0(text, "</li>")
     }
+    
+    # No intervention bullet
     
     naive_estimations <- get_naive_estimations()
     sum_cases <- sum(naive_estimations['estimated_critical_cases']) + sum(naive_estimations['estimated_severe_cases']) 
@@ -404,11 +439,13 @@ server <- function(input, output, session) {
     
     if (bed_total > 0) {
       if(days_to_fill < Inf) {
-        text <- paste(c(text, '\nAssuming no interventions, the number of hospitalizations will equal the number of hospital beds within ', days_to_fill, " days. \n"), collapse = "")
+        text <- paste(c(text, '<li>Assuming no changes to the doubling time, the number of people requiring hospitalization will exceed the number of available hospital beds in ', days_to_fill, " days. </li>"), collapse = "")
       } else {
-        text <- paste(text, '\nAssuming no interventions, the number of hospitalizations will be LESS than the number of hospital beds in ', input$num_days, " days. \n", sep = "")
+        text <- paste(text, '<li>Assuming no changes to the doubling time, the number of people requiring hospitalization will not exceed the number of available hospital beds in the next ', input$num_days, " days. </li>", sep = "")
       }
     }
+    
+    # Intervention bullet
     
     dt_changes = get_dt_changes()
     if(length(dt_changes) > 0 & bed_total > 0) {
@@ -418,40 +455,14 @@ server <- function(input, output, session) {
       first_day_without_beds = min(which(beds_remaining<=0)) - 1
       
       if(length(first_day_without_beds > 0) & first_day_without_beds < Inf) {
-        text <- paste(text, 'With the interventions, the number of hospitalizations will equal the number of hospital beds within ', first_day_without_beds, " days. \n", sep = "")
+        text <- paste(text, '<li>If interventions lead to the input change in doubling time, then the number of people requiring hospitalization will exceed the number of available beds in ', first_day_without_beds, " days. </li>", sep = "")
       } else {
-        text <- paste(text, 'With the interventions, the number of hospitalizations will be LESS than the number of hospital beds in ', input$num_days, " days. \n", sep = "")
+        text <- paste(text, '<li>If interventions lead to the input change in doubling time, then the number of people requiring hospitalization will not exceed the number of available beds in the next ', input$num_days, " days. </li>", sep = "")
       }
     }
     
-    text
+    return(paste0(text, "</ul>"))
     
-  })
-
-  output$text1 <- renderText({
-    req(input$county1)
-    county_df <- get_county_df()
-    
-    if (!('All' %in% input$county1)) {
-      text = ""
-      for (county in input$county1) {
-        under_60 = sum((county_df %>% filter(age_decade %in% c('0-9','10-19','20-29','30-39','40-49','50-59') & County == county))$population_in_age_group)
-        over_60 = sum((county_df %>% filter(age_decade %in% c('60-69', '70-79', '80+') & County == county))$population_in_age_group)
-        county_text = paste(c(county, "has", format(under_60, big.mark=","), "people aged 0-59 and",
-                              format(over_60, big.mark=","), "people aged 60+. "), collapse = " ")
-        text = paste(text, county_text, sep = '')
-      }
-      
-      return(text)
-    } else {
-      text = ""
-      under_60 = sum((county_df %>% filter(age_decade %in% c('0-9','10-19','20-29','30-39','40-49','50-59')))$population_in_age_group)
-      over_60 = sum((county_df %>% filter(age_decade %in% c('60-69', '70-79', '80+')))$population_in_age_group)
-      county_text = paste(c(input$state1, "has", format(under_60, big.mark=","), "people aged 0-59 and",
-                            format(over_60, big.mark=","), "people aged 60+. "), collapse = " ")
-      text = paste(text, county_text, sep = '')
-      return(text)
-    }
   })
   
   output$table1 <- renderTable({
@@ -576,6 +587,7 @@ server <- function(input, output, session) {
   
   output$plot1 <- renderPlotly({
     req(input$county1)
+    req(input$doubling_time)
     
     case_numbers <- get_case_numbers()
     fatal_cases <- case_numbers$fatal
