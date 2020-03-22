@@ -249,10 +249,10 @@ server <- function(input, output, session) {
     if (is.na(num_cases)) {num_cases <- 1}
     num_cases <- max(num_cases, 1)
     updateNumericInput(session, "num_cases", value = num_cases)
-    updateSliderInput(session, "num_days", value = 30)
+    updateSliderInput(session, "num_days", value = 40)
     updateNumericInput(session, "doubling_time", value = 6)
-    updateNumericInput(session, "los_severe", value = 11)
-    updateNumericInput(session, "los_critical", value = 13)
+    updateNumericInput(session, "los_severe", value = 12)
+    updateNumericInput(session, "los_critical", value = 7)
     updateSliderInput(session, "prop_bed_for_covid", value = 50)
   })
   
