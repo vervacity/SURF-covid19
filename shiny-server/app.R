@@ -12,13 +12,13 @@ shiny_project <- ""
 prod <- paste0("/srv/shiny-server/", shiny_project)
 dev <- paste0("~/shiny-server/", shiny_project)
 if (!dir.exists(prod) & !dir.exists(dev)) {
-  message(" using getwd() for shiny_path")
+  #message(" using getwd() for shiny_path")
   shiny_path <- getwd()
 } else {
   .libPaths(c(.libPaths(), "/srv/.R/library"))
   options(java.parameters = "-Xmx8048m")
-  if (dir.exists(prod)) message("prod"); shiny_path <- prod
-  if (dir.exists(dev)) message("dev"); shiny_path <- dev
+  #if (dir.exists(prod)) message("prod"); shiny_path <- prod
+  #if (dir.exists(dev)) message("dev"); shiny_path <- dev
 }
 
 library(data.table)
@@ -32,17 +32,14 @@ library(usmap)
 
 df <- read.csv('county_age_severity_rates_v6.csv', stringsAsFactors = FALSE)
 df$County <- gsub('city', 'City', df$County)
-bed_df <- read.csv('Hospitals.csv', stringsAsFactors = FALSE) %>%
-  filter(BEDS != -999, STATE != 'PR') %>% 
-  filter(TYPE %in% c('CRITICAL ACCESS', 'MILITARY', 'SPECIAL', 'GENERAL ACUTE CARE')) %>% 
-  select(COUNTYFIPS, BEDS) %>% rename(FIPS = COUNTYFIPS, beds = BEDS)
-bed_df <- bed_df %>% group_by(FIPS) %>%
-  summarize(num_beds = sum(beds)) %>% mutate(FIPS = as.numeric(FIPS))
+acute_beds_dt = fread('acute_byFIPS.csv')
+icu_beds_dt = fread('icu_byFIPS.csv')
+bed_dt = merge(acute_beds_dt, icu_beds_dt, by = "FIPS")
 county_cases <- read.csv("https://static.usafacts.org/public/data/covid-19/covid_confirmed_usafacts.csv")
 county_cases <- county_cases[, c(1,2, ncol(county_cases))]
 county_cases <- county_cases %>% rename_at(vars(colnames(county_cases)), ~ c("FIPS", 'County', 'Cases')) %>% 
   filter(FIPS != 0) %>% mutate(FIPS = as.numeric(FIPS)) %>% select(FIPS, Cases)
-df <- left_join(df, bed_df, by = 'FIPS')
+df <- left_join(df, bed_dt, by = 'FIPS')
 df <- left_join(df, county_cases, by = 'FIPS')
 
 ui <- shinyUI(
@@ -61,9 +58,9 @@ ui <- shinyUI(
                                  hr(),
                                  #h4("User Inputs"),
                                  uiOutput("num_cases"),
-                                 sliderInput("num_days", "Number of Days to Model Ahead", 30, min = 1, max = 60),
-                                 sliderInput("los_severe", "Length of Stay (Days) for Severe", 11, min = 1, max = 90),
-                                 sliderInput("los_critical", "Length of Stay (Days) for Critical", 13, min = 1, max = 90),
+                                 sliderInput("num_days", "Number of Days to Model Ahead", 50, min = 1, max = 60),
+                                 sliderInput("los_severe", "Length of Stay (Days) for Acute", 11, min = 1, max = 90),
+                                 sliderInput("los_critical", "Length of Stay (Days) for ICU", 13, min = 1, max = 90),
                                  sliderInput("days_to_hospitalization", "Days to hospitalization", 9, min = 0, max = 30),
                                  sliderInput("prop_bed_for_covid", "% of Beds for COVID-19 Cases", 50, min = 0, max = 100),
                                  actionButton("reset", "Reset to default user inputs"),
@@ -99,8 +96,8 @@ ui <- shinyUI(
                         ),
                         hr(),
                         htmlOutput("text1"),
-                        tags$head(tags$style("ul, li {margin-left: 0.5em; padding-left: 0; font-size: 18px}")),
-                        tags$head(tags$style("li {margin-top: 1em;}")),
+                        tags$head(tags$style("ul, li {margin-left: 0.5em; padding-left: 0;}")),
+                        tags$head(tags$style("li {margin-top: 0.5em;}")),
                         br(),
                         tableOutput("table1"),
                         hr(),
@@ -345,35 +342,46 @@ server <- function(input, output, session) {
     
     # Hospital Beds bullet
     if (!('All' %in% input$county1)) {
-      bed_total <- 0
+      acute_bed_total <- 0
+      icu_bed_total <- 0
       county_no_info <- c()
       county_with_info <- c()
+      
+      # List counties with and without bed data, and add text about assumption if any county has bed data
+      add_assumption = TRUE # Set to FALSE once added
       for (county in input$county1) {
-        num_beds = (county_df %>% filter(County == county) %>% summarize(num_beds = max(num_beds)))[[1]]*input$prop_bed_for_covid/100
-        if (is.na(num_beds)) {
+        num_beds_df = (county_df %>% 
+          filter(County == county) %>% 
+          summarize(
+            num_total_beds = max(num_acute_beds+num_icu_beds),
+            num_acute_beds = max(num_acute_beds),
+            num_icu_beds = max(num_icu_beds))
+          )
+        num_total_beds_available = num_beds_df$num_total_beds[1]*input$prop_bed_for_covid/100
+        num_acute_beds_available = num_beds_df$num_acute_beds[1]*input$prop_bed_for_covid/100
+        num_icu_beds_available = num_beds_df$num_icu_beds[1]*input$prop_bed_for_covid/100
+        
+        if (is.na(num_total_beds_available)) {
           county_no_info <- c(county_no_info, county)
         } else {
+          if(add_assumption) {
+            text = paste(text, "<li>Assuming", paste0(toString(input$prop_bed_for_covid), "%"), "of beds are available to COVID-19 cases, ", collapse = " ")
+            add_assumption = FALSE
+          }
           county_with_info <- c(county_with_info, county)
-          bed_total <- bed_total + num_beds
+          acute_bed_total <- acute_bed_total + num_acute_beds_available
+          icu_bed_total <- icu_bed_total + num_icu_beds_available
+          bed_text = paste(county, 'has', round(num_acute_beds_available), 'acute beds and', round(num_icu_beds_available), 'ICU beds for COVID-19 cases. ', collapse = " ")
+          text = paste(text, bed_text, sep = '')
         }
       }
       
       if (length(county_with_info) > 0) {
-        text = paste(text, "<li>Assuming", paste0(toString(input$prop_bed_for_covid), "%"), "of beds available, ", collapse = " ")
-      }
-      
-      for (county in county_with_info) {
-        num_beds = (county_df %>% filter(County == county) %>% summarize(num_beds = max(num_beds)))[[1]]*input$prop_bed_for_covid/100
-        bed_text = paste(county, 'has', round(num_beds), 'hospital beds for COVID-19 cases. ', collapse = " ")
-        text = paste(text, bed_text, sep = '')
-      }
-      
-      if (length(county_with_info) > 0) {
-        text = paste(text, 'These include general (non-pediatric), government, and specialty hospitals (see documentation). You can modify the % of beds available to COVID patients in the inputs.')
+        text = paste(text, 'You can modify the % of beds available to COVID-19 patients in the inputs. See Documentation tab for data source.')
       }
       
       if (length(county_no_info) > 0) {
-        text = paste0(text, "\nWe did not find information on the number of beds in")
+        text = paste(text, "We did not find information on the number of beds in")
       }
       temp <- ""
       for (county in county_no_info) {
@@ -390,32 +398,44 @@ server <- function(input, output, session) {
       
     } else {
       
-      bed_total <- 0
+      acute_bed_total <- 0
+      icu_bed_total <- 0
       
       county_no_info <- c()
       county_with_info <- c()
-      counties <- 
+      
       for (county in unique(county_df$County)) {
-        num_beds <- (county_df %>% filter(County == county) %>% summarize(num_beds = max(num_beds)))[[1]]*input$prop_bed_for_covid/100
-        if (is.na(num_beds)) {
+        num_beds_df = (county_df %>% 
+                         filter(County == county) %>% 
+                         summarize(
+                           num_total_beds = max(num_acute_beds+num_icu_beds),
+                           num_acute_beds = max(num_acute_beds),
+                           num_icu_beds = max(num_icu_beds))
+        )
+        num_total_beds_available = num_beds_df$num_total_beds[1]*input$prop_bed_for_covid/100
+        num_acute_beds_available = num_beds_df$num_acute_beds[1]*input$prop_bed_for_covid/100
+        num_icu_beds_available = num_beds_df$num_icu_beds[1]*input$prop_bed_for_covid/100
+        
+        if (is.na(num_total_beds_available)) {
           county_no_info <- c(county_no_info, county)
         } else {
           county_with_info <- c(county_with_info, county)
-          bed_total <- bed_total + num_beds
+          acute_bed_total <- acute_bed_total + num_acute_beds_available
+          icu_bed_total <- icu_bed_total + num_icu_beds_available
         }
       }
       
       if (length(county_with_info) > 0) {
-        text = paste("<li>", "Assuming", paste0(toString(input$prop_bed_for_covid), "%"), "of beds available,", input$state1, "has", format(round(bed_total), big.mark=","),
-                     "hospital beds for COVID-19 cases.", collapse = " ")
+        text = paste("<li>", "Assuming", paste0(toString(input$prop_bed_for_covid), "%"), "of beds available to COVID-19 cases,", input$state1, "has", format(round(acute_bed_total), big.mark=","),
+                     "acute beds and", format(round(icu_bed_total), big.mark=","), "ICU beds for COVID-19 cases.", collapse = " ")
       }
 
       if (length(county_with_info) > 0) {
-        text = paste(text, 'Includes general (non-pediatric), government, and specialty hospitals - see documentation. Modify COVID occupancy % below. ')
+        text = paste(text, 'You can modify the % of beds available to COVID-19 patients in the inputs. See Documentation tab for data source.')
       }
       
       if (length(county_no_info) > 0) {
-        text = paste0(text, "We did not find information on the number of beds in")
+        text = paste(text, "We did not find information on the number of beds in")
       }
       temp <- ""
       for (county in county_no_info) {
@@ -429,37 +449,59 @@ server <- function(input, output, session) {
     }
     
     # No intervention bullet
+  
+    critical_without_intervention = get_case_numbers()[['critical_without_intervention']]
+    severe_without_intervention = get_case_numbers()[['severe_without_intervention']]
+      
+    icu_beds_remaining = icu_bed_total - critical_without_intervention
+    acute_beds_remaining = acute_bed_total - severe_without_intervention
+    icu_days_to_fill = min(which(icu_beds_remaining<=0)) - 1
+    acute_days_to_fill = min(which(acute_beds_remaining<=0)) - 1
     
-    naive_estimations <- get_naive_estimations()
-    sum_cases <- sum(naive_estimations['estimated_critical_cases']) + sum(naive_estimations['estimated_severe_cases']) 
-    
-    # calculate days to fill beds given no interventions
-    hospitalizations_without_intervention = get_case_numbers()[['hospitalizations_without_intervention']]
-    beds_remaining = bed_total - hospitalizations_without_intervention
-    days_to_fill = min(which(beds_remaining<=0)) - 1
-    
-    if (bed_total > 0) {
-      if(days_to_fill < Inf) {
-        text <- paste(c(text, '<li>Assuming no changes to the doubling time, the number of people requiring hospitalization will exceed the number of available hospital beds in ', days_to_fill, " days. </li>"), collapse = "")
+    if (icu_bed_total > 0) {
+      if(icu_days_to_fill > 0 & icu_days_to_fill < Inf) {
+        text <- paste(c(text, '<li>Assuming no changes to the doubling time, the number of people requiring ICU beds will exceed the number of available ICU beds in ', icu_days_to_fill, " days. </li>"), collapse = "")
       } else {
-        text <- paste(text, '<li>Assuming no changes to the doubling time, the number of people requiring hospitalization will not exceed the number of available hospital beds in the next ', input$num_days, " days. </li>", sep = "")
+        text <- paste(text, '<li>Assuming no changes to the doubling time, the number of people requiring ICU beds will not exceed the number of available ICU beds in the next ', input$num_days, " days. </li>", sep = "")
+      }
+    }
+    
+    if (acute_bed_total > 0) {
+      if(acute_days_to_fill > 0 & acute_days_to_fill < Inf) {
+        text <- paste(c(text, '<li>Assuming no changes to the doubling time, the number of people requiring acute beds will exceed the number of available acute beds in ', acute_days_to_fill, " days. </li>"), collapse = "")
+      } else {
+        text <- paste(text, '<li>Assuming no changes to the doubling time, the number of people requiring acute beds will not exceed the number of available acute beds in the next ', input$num_days, " days. </li>", sep = "")
       }
     }
     
     # Intervention bullet
     
     dt_changes = get_dt_changes()
-    if(length(dt_changes) > 0 & bed_total > 0) {
+    if(length(dt_changes) > 0 & (acute_bed_total > 0 | icu_bed_total > 0)) {
       cases_w_interventions <- get_case_numbers()
-      intervention_hospitalizations = cases_w_interventions$critical + cases_w_interventions$severe
-      beds_remaining = bed_total - intervention_hospitalizations
-      first_day_without_beds = min(which(beds_remaining<=0)) - 1
+      intervention_icu = cases_w_interventions$critical
+      intervention_acute = cases_w_interventions$severe
+      icu_beds_remaining = icu_bed_total - intervention_icu
+      acute_beds_remaining = acute_bed_total - intervention_acute
+      icu_days_to_fill = min(which(icu_beds_remaining<=0)) - 1
+      acute_days_to_fill = min(which(acute_beds_remaining<=0)) - 1
       
-      if(length(first_day_without_beds > 0) & first_day_without_beds < Inf) {
-        text <- paste(text, '<li>If interventions lead to the input change in doubling time, then the number of people requiring hospitalization will exceed the number of available beds in ', first_day_without_beds, " days. </li>", sep = "")
-      } else {
-        text <- paste(text, '<li>If interventions lead to the input change in doubling time, then the number of people requiring hospitalization will not exceed the number of available beds in the next ', input$num_days, " days. </li>", sep = "")
+      if (icu_bed_total > 0) {
+        if(icu_days_to_fill > 0 & icu_days_to_fill < Inf) {
+          text <- paste(c(text, '<li>If interventions lead to the input change in doubling time, then the number of people requiring ICU beds will exceed the number of available ICU beds in ', icu_days_to_fill, " days. </li>"), collapse = "")
+        } else {
+          text <- paste(text, '<li>If interventions lead to the input change in doubling time, then the number of people requiring ICU beds will not exceed the number of available ICU beds in the next ', input$num_days, " days. </li>", sep = "")
+        }
       }
+      
+      if (acute_bed_total > 0) {
+        if(acute_days_to_fill > 0 & acute_days_to_fill < Inf) {
+          text <- paste(c(text, '<li>If interventions lead to the input change in doubling time, the number of people requiring acute beds will exceed the number of available acute beds in ', acute_days_to_fill, " days. </li>"), collapse = "")
+        } else {
+          text <- paste(text, '<li>If interventions lead to the input change in doubling time, the number of people requiring acute beds will not exceed the number of available acute beds in the next ', input$num_days, " days. </li>", sep = "")
+        }
+      }
+      
     }
     
     return(paste0(text, "</ul>"))
@@ -589,7 +631,8 @@ server <- function(input, output, session) {
         "fatal" = fatal_cases, 
         "critical" = critical_cases, 
         "severe" = severe_cases,
-        "hospitalizations_without_intervention" = critical_without_intervention + severe_without_intervention)
+        "critical_without_intervention" = critical_without_intervention,
+        "severe_without_intervention" = severe_without_intervention)
       return(return_cases)
     } else {
       stop(safeError(
@@ -608,7 +651,22 @@ server <- function(input, output, session) {
     critical_cases <- case_numbers$critical
     severe_cases <- case_numbers$severe
 
-    num_beds <- round(sum((get_county_df() %>% group_by(County) %>% summarize(num_beds = max(num_beds)) %>% filter(!is.na(num_beds)))$num_beds)*input$prop_bed_for_covid/100)
+    num_beds_df = get_county_df() %>% 
+      group_by(County) %>% 
+      summarize(
+       num_total_beds = max(num_acute_beds+num_icu_beds, na.rm = TRUE),
+       num_acute_beds = max(num_acute_beds, na.rm = TRUE),
+       num_icu_beds = max(num_icu_beds, na.rm = TRUE)) %>%
+      ungroup() %>%
+      summarize(
+        num_total_beds = sum(num_total_beds, na.rm = TRUE),
+        num_acute_beds = max(num_acute_beds, na.rm = TRUE),
+        num_icu_beds = max(num_icu_beds, na.rm = TRUE))
+
+    num_total_beds_available = num_beds_df$num_total_beds[1]*input$prop_bed_for_covid/100
+    num_acute_beds_available = num_beds_df$num_acute_beds[1]*input$prop_bed_for_covid/100
+    num_icu_beds_available = num_beds_df$num_icu_beds[1]*input$prop_bed_for_covid/100
+    
     n_days <- input$num_days
     day_list <- c(0:n_days)
     
@@ -622,9 +680,9 @@ server <- function(input, output, session) {
       #fatal_cases = fatal_cases
     ), id.vars = c('date'))
     
-    chart_data[chart_data$variable == 'estimated_hospitalizations', 'variable'] <-  'Hospitalizations (Severe + Critical Cases)'
-    chart_data[chart_data$variable == 'severe_cases', 'variable'] <-  'Severe Cases'
-    chart_data[chart_data$variable == 'critical_cases', 'variable'] <-  'Critical Cases'
+    chart_data[chart_data$variable == 'estimated_hospitalizations', 'variable'] <-  'Hospitalizations (Acute + ICU Cases)'
+    chart_data[chart_data$variable == 'severe_cases', 'variable'] <-  'Acute Cases'
+    chart_data[chart_data$variable == 'critical_cases', 'variable'] <-  'ICU Cases'
     #chart_data[chart_data$variable == 'fatal_cases', 'variable'] <-  'Cumulative Fatal Cases'
     
     gp = ggplot(chart_data,
@@ -649,12 +707,23 @@ server <- function(input, output, session) {
       }
     }
     
-    if(!is.na(num_beds)) {
+    if(!is.na(num_total_beds_available)) {
       gp = gp +
-        geom_hline(yintercept = num_beds, linetype = "dashed", color = 'grey') + 
-        annotate("text", x = Sys.Date() + 0.5*n_days, y = num_beds*1.05, label = "Number of Hospital Beds for COVID Patients", vjust=1, hjust=0, color = 'grey')
+        geom_hline(yintercept = num_total_beds_available, linetype = "dashed", color = 'grey') + 
+        annotate("text", x = Sys.Date() + 0.5*n_days, y = num_total_beds_available*1.05, label = "Total Beds for COVID Patients", vjust=1, hjust=0, color = 'grey')
     }
     
+    if(!is.na(num_acute_beds_available)) {
+      gp = gp +
+        geom_hline(yintercept = num_acute_beds_available, linetype = "dashed", color = 'grey') + 
+        annotate("text", x = Sys.Date() + 0.5*n_days, y = num_acute_beds_available*1.05, label = "Acute Beds for COVID Patients", vjust=1, hjust=0, color = 'grey')
+    }
+    
+    if(!is.na(num_icu_beds_available)) {
+      gp = gp +
+        geom_hline(yintercept = num_icu_beds_available, linetype = "dashed", color = 'grey') + 
+        annotate("text", x = Sys.Date() + 0.5*n_days, y = num_icu_beds_available*1.05, label = "ICU Beds for COVID Patients", vjust=1, hjust=0, color = 'grey')
+    }
     
     ggplotly(gp, tooltip = 'text') %>% 
       layout(
