@@ -648,8 +648,7 @@ server <- function(input, output, session) {
       return(return_cases)
     } else {
       stop(safeError(
-        "Model is not valid for the input values relative to the population size. 
-      Please reduce the initial number; reduce the days to model; or increase the doubling time."
+        "Current data are insufficient to reliably model infection rates this high. The model will be updated as more data become available. To proceed, reduce the initial number; or reduce the days to model; or increase the doubling time."
       ))
     }
   })
