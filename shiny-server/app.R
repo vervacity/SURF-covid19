@@ -156,7 +156,7 @@ ui <- shinyUI(
                           h4(a(href='https://docs.google.com/spreadsheets/d/1pIGNv4EiXOjLXNvIoJUEGy6681Pf3LHbRQzzuFjAtSs/', "Click here for the metholodogy.",
                                target = '_blank')),
                           br(),
-                          h4(a(href='https://docs.google.com/spreadsheets/d/1uut3Sw-DYleGneeZylRfr1qEQYqJYfRszJAp5eF8_Ho/', "Click here for the county-specific severity rates.",
+                          h4(a(href='https://docs.google.com/spreadsheets/d/1TvrI02sSly5JlLj4kol9NoPs7EOj9jrfu4hHdXUQL3M/', "Click here for the county-specific severity rates.",
                                target = '_blank')),
                           br(),
                           h4(a(href='https://docs.google.com/spreadsheets/d/1x9IjGEjLRO_8Tz7Y6Nf6rOeUsItZfMjoj83Qf5D9jo0/', "Click here for the age-specific severity rates.",
@@ -553,15 +553,35 @@ server <- function(input, output, session) {
   
   # Function to get hospitalizations from cumulative cases, with projection backwards from current cases to prevent jump at day LOS
   get_hospitalizations = function(cumulative_cases, los, doubling_time) {
-    
-    # Project cases backwards LOS days
-    cum_cases_w_backwards_projection = c(rep(NA, los + input$days_to_hospitalization), cumulative_cases)
-    for (i in (los + input$days_to_hospitalization):1) {
-        cum_cases_w_backwards_projection[i] = cum_cases_w_backwards_projection[i+1]/2^(1/doubling_time)
-    } 
-    
-    # Calculate hospitalizations from day 1 through projection period
-    return(cum_cases_w_backwards_projection[(los + input$days_to_hospitalization + 1):length(cum_cases_w_backwards_projection)] - cum_cases_w_backwards_projection[1:length(cumulative_cases)])
+      
+      # project back to 1, then fill in the rest (if any) with zeros
+      back_vec = c(rep(NA, los + input$days_to_hospitalization), cumulative_cases)
+      for (i in (los + input$days_to_hospitalization):1) {
+          back_vec[i] = back_vec[i + 1]/2^(1/doubling_time)
+      }
+      
+      # round to the 12th decimal place for numerical issues
+      back_vec = round(back_vec, 12)
+      
+      # make elements < 1 equal to 0
+      if (sum(back_vec < 1) > 0) {
+          back_vec[1:max(which(back_vec < 1))] = 0
+      }
+      
+      # get indices of original vectors
+      original_start = los + input$days_to_hospitalization + 1
+      original_end = los + input$days_to_hospitalization + length(cumulative_cases)
+      stopifnot(all.equal(back_vec[original_start:original_end], cumulative_cases))
+      stopifnot(length(back_vec) == original_end)
+      
+      # get indices of vectors shifted by days to hospitalization
+      shifted_start = original_start - input$days_to_hospitalization
+      shifted_end = original_end - input$days_to_hospitalization
+      
+      # subtract off for length of stay
+      return_vec = back_vec[shifted_start:shifted_end] - back_vec[(shifted_start - los):(shifted_end - los)]
+      
+      return(return_vec)
   }
   
   get_case_numbers <- reactive({
