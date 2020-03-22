@@ -175,9 +175,13 @@ ui <- shinyUI(
                           br(),
                           a(href="https://www.imperial.ac.uk/media/imperial-college/medicine/sph/ide/gida-fellowships/Imperial-College-COVID19-NPI-modelling-16-03-2020.pdf", target = '_blank', "[3] Estimates of the severity of COVID-19 disease by age group"),
                           br(),
-                          a(href="https://www.thelancet.com/journals/lancet/article/PIIS0140-6736(20)30566-3/fulltext", target = '_blank', "[4] 7 day LOS for ICU cases and 12 day LOS for Acute cases"),
+                          a(href="https://www.thelancet.com/journals/lancet/article/PIIS0140-6736(20)30566-3/fulltext", target = '_blank', "[4] 7-day LOS for ICU cases and 12-day LOS for acute cases; 11 days from symptom onset to hospital admission"),
                           br(),
-                          a(href="https://usafacts.org/visualizations/coronavirus-covid-19-spread-map/", target = '_blank', "[5] Default values of cases by county"),
+                          a(href="https://www.thelancet.com/journals/lanres/article/PIIS2213-2600(20)30079-5/fulltext", target = '_blank', "[5] 9.5 days from symptom onset to ICU admission"),
+                          br(),
+                          a(href="https://www.thelancet.com/journals/lancet/article/PIIS0140-6736(20)30183-5/fulltext", target = '_blank', "[6] 7 days from illness onset to hospital admission"),
+                          br(),
+                          a(href="https://usafacts.org/visualizations/coronavirus-covid-19-spread-map/", target = '_blank', "[7] Default values of cases by county"),
                           br(),
                           br(),
                           br(),
@@ -253,6 +257,8 @@ server <- function(input, output, session) {
     updateNumericInput(session, "doubling_time", value = 6)
     updateNumericInput(session, "los_severe", value = 12)
     updateNumericInput(session, "los_critical", value = 7)
+    updateNumericInput(session, "los_critical", value = 7)
+    updateNumericInput(session, "days_to_hospitalization", value = 9)
     updateSliderInput(session, "prop_bed_for_covid", value = 50)
   })
   
