@@ -508,14 +508,13 @@ server <- function(input, output, session) {
   get_hospitalizations = function(cumulative_cases, los, doubling_time) {
     
     # Project cases backwards LOS days
-    cum_cases_w_backwards_projection = c(rep(cumulative_cases[1], los), cumulative_cases)
-    for (i in los:1) {
-      cum_cases_w_backwards_projection[i] = cum_cases_w_backwards_projection[i+1]/2^(1/doubling_time)
-    }
+    cum_cases_w_backwards_projection = c(rep(NA, los + input$days_to_hospitalization), cumulative_cases)
+    for (i in (los + input$days_to_hospitalization):1) {
+        cum_cases_w_backwards_projection[i] = cum_cases_w_backwards_projection[i+1]/2^(1/doubling_time)
+    } 
     
     # Calculate hospitalizations from day 1 through projection period
-    # return(cum_cases_w_backwards_projection[(los+1):length(cum_cases_w_backwards_projection)] - cum_cases_w_backwards_projection[1:length(cumulative_cases)])
-    return(cum_cases_w_backwards_projection[(los+1):length(cum_cases_w_backwards_projection)] - c(rep(0, input$days_to_hospitalization), cum_cases_w_backwards_projection[1:length(cumulative_cases)])[1:length(cumulative_cases)])
+    return(cum_cases_w_backwards_projection[(los + input$days_to_hospitalization + 1):length(cum_cases_w_backwards_projection)] - cum_cases_w_backwards_projection[1:length(cumulative_cases)])
   }
   
   get_case_numbers <- reactive({
