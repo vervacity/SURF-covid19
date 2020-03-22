@@ -64,7 +64,7 @@ ui <- shinyUI(
                                  sliderInput("num_days", "Number of Days to Model Ahead", 30, min = 1, max = 60),
                                  sliderInput("los_severe", "Length of Stay (Days) for Severe", 11, min = 1, max = 90),
                                  sliderInput("los_critical", "Length of Stay (Days) for Critical", 13, min = 1, max = 90),
-                                 # sliderInput("days_to_hospitalization", "Days to hospitalization", 9, min = 0, max = 30),
+                                 sliderInput("days_to_hospitalization", "Days to hospitalization", 9, min = 0, max = 30),
                                  sliderInput("prop_bed_for_covid", "% of Beds for COVID-19 Cases", 50, min = 0, max = 100),
                                  actionButton("reset", "Reset to default user inputs"),
                                  hr(),
@@ -514,7 +514,8 @@ server <- function(input, output, session) {
     }
     
     # Calculate hospitalizations from day 1 through projection period
-    return(cum_cases_w_backwards_projection[(los+1):length(cum_cases_w_backwards_projection)] - cum_cases_w_backwards_projection[1:length(cumulative_cases)])
+    # return(cum_cases_w_backwards_projection[(los+1):length(cum_cases_w_backwards_projection)] - cum_cases_w_backwards_projection[1:length(cumulative_cases)])
+    return(cum_cases_w_backwards_projection[(los+1):length(cum_cases_w_backwards_projection)] - c(rep(0, input$days_to_hospitalization), cum_cases_w_backwards_projection[1:length(cumulative_cases)])[1:length(cumulative_cases)])
   }
   
   get_case_numbers <- reactive({
