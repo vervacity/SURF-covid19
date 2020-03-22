@@ -92,8 +92,7 @@ ui <- shinyUI(
                         width = 3
                       ),
                       mainPanel(
-                        HTML("<h3>This is a planning tool, not a prediction. To generate a forecast, enter the doubling time for your region (and modify the total confirmed number of COVID-19 cases if necessary). See the Documentation tab for methodology.</h3>"
-                        ),
+                        h4("This is a planning tool, not a prediction. To generate a forecast, enter the doubling time for your region (and modify the total confirmed number of COVID-19 cases if necessary). See the Documentation tab for methodology."),
                         hr(),
                         htmlOutput("text1"),
                         tags$head(tags$style("ul, li {margin-left: 0.5em; padding-left: 0;}")),
