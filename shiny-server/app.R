@@ -58,7 +58,7 @@ ui <- shinyUI(
                                  hr(),
                                  #h4("User Inputs"),
                                  uiOutput("num_cases"),
-                                 sliderInput("num_days", "Number of Days to Model Ahead", 50, min = 1, max = 60),
+                                 sliderInput("num_days", "Number of Days to Model Ahead", 40, min = 1, max = 60),
                                  sliderInput("los_severe", "Length of Stay (Days) for Acute", 11, min = 1, max = 90),
                                  sliderInput("los_critical", "Length of Stay (Days) for ICU", 13, min = 1, max = 90),
                                  sliderInput("days_to_hospitalization", "Days to hospitalization", 9, min = 0, max = 30),
@@ -83,7 +83,7 @@ ui <- shinyUI(
                                           #numericInput("double_change_3", "", NA, min = 1)
                                    ),
                                    column(12, style="display:center-align",
-                                          actionButton("submit", "Submit DT changes"),
+                                          #actionButton("submit", "Submit DT changes"),
                                           actionButton("clear", "Clear DT changes")
                                    )
                                  )
@@ -589,7 +589,7 @@ server <- function(input, output, session) {
     
     # cases with intervention
     dt_changes = c()
-    if (input$submit != 0) {
+    if (!is.na(input$day_change_1) & input$day_change_1 > 0 & !is.na(input$double_change_1) & input$double_change_1 > 0) {
       dt_changes = get_dt_changes()
     }
     
@@ -683,7 +683,7 @@ server <- function(input, output, session) {
       coord_cartesian(ylim=c(0, max(critical_cases + severe_cases))) +
       ggtitle("COVID-19 cases requiring hospitalization")
     
-    if (input$submit != 0) {
+    if (!is.na(input$day_change_1) & input$day_change_1 > 0 & !is.na(input$double_change_1) & input$double_change_1 > 0) {
       dt_changes = get_dt_changes()
       days <- dt_changes[c(FALSE, TRUE)]
       for (i in days) {
