@@ -62,7 +62,8 @@ ui <- shinyUI(
                                  sliderInput("los_severe", "Length of Stay (Days) for Acute", 12, min = 1, max = 90),
                                  sliderInput("los_critical", "Length of Stay (Days) for ICU", 7, min = 1, max = 90),
                                  sliderInput("days_to_hospitalization", "Days to Hospitalization", 9, min = 0, max = 30),
-                                 sliderInput("prop_bed_for_covid", "% of Beds for COVID-19 Cases", 50, min = 0, max = 100),
+                                 sliderInput("prop_acute_beds_for_covid", "% of Acute Beds for COVID-19 Cases", 50, min = 0, max = 100),
+                                 sliderInput("prop_icu_beds_for_covid", "% of ICU Beds for COVID-19 Cases", 50, min = 0, max = 100),
                                  actionButton("reset", "Reset to default user inputs"),
                                  hr(),
                                  h4("Simulation of Intervention"),
@@ -254,12 +255,12 @@ server <- function(input, output, session) {
     num_cases <- max(num_cases, 1)
     updateNumericInput(session, "num_cases", value = num_cases)
     updateSliderInput(session, "num_days", value = 40)
-    updateNumericInput(session, "doubling_time", value = 6)
+    updateNumericInput(session, "doubling_time", value = 7)
     updateNumericInput(session, "los_severe", value = 12)
     updateNumericInput(session, "los_critical", value = 7)
-    updateNumericInput(session, "los_critical", value = 7)
     updateNumericInput(session, "days_to_hospitalization", value = 9)
-    updateSliderInput(session, "prop_bed_for_covid", value = 50)
+    updateSliderInput(session, "prop_acute_beds_for_covid", value = 50)
+    updateSliderInput(session, "prop_icu_beds_for_covid", value = 50)
   })
   
   
@@ -356,19 +357,18 @@ server <- function(input, output, session) {
         num_beds_df = (county_df %>% 
           filter(County == county) %>% 
           summarize(
-            num_total_beds = max(num_acute_beds+num_icu_beds),
-            num_acute_beds = max(num_acute_beds),
-            num_icu_beds = max(num_icu_beds))
+            num_acute_beds = max(num_acute_beds, na.rm = T),
+            num_icu_beds = max(num_icu_beds, na.rm = T))
           )
-        num_total_beds_available = num_beds_df$num_total_beds[1]*input$prop_bed_for_covid/100
-        num_acute_beds_available = num_beds_df$num_acute_beds[1]*input$prop_bed_for_covid/100
-        num_icu_beds_available = num_beds_df$num_icu_beds[1]*input$prop_bed_for_covid/100
+        num_acute_beds_available = num_beds_df$num_acute_beds[1]*input$prop_acute_beds_for_covid/100
+        num_icu_beds_available = num_beds_df$num_icu_beds[1]*input$prop_icu_beds_for_covid/100
+        num_total_beds_available = num_acute_beds_available + num_icu_beds_available
         
         if (is.na(num_total_beds_available)) {
           county_no_info <- c(county_no_info, county)
         } else {
           if(add_assumption) {
-            text = paste(text, "<li>Assuming", paste0(toString(input$prop_bed_for_covid), "%"), "of beds are available to COVID-19 cases, ", collapse = " ")
+            text = paste(text, "<li>", "Assuming", paste0(toString(input$prop_acute_beds_for_covid), "%"), "of acute beds and", paste0(toString(input$prop_icu_beds_for_covid), "%"), "of ICU beds available to COVID-19 cases,", collapse = " ")
             add_assumption = FALSE
           }
           county_with_info <- c(county_with_info, county)
@@ -415,9 +415,9 @@ server <- function(input, output, session) {
                            num_acute_beds = max(num_acute_beds),
                            num_icu_beds = max(num_icu_beds))
         )
-        num_total_beds_available = num_beds_df$num_total_beds[1]*input$prop_bed_for_covid/100
-        num_acute_beds_available = num_beds_df$num_acute_beds[1]*input$prop_bed_for_covid/100
-        num_icu_beds_available = num_beds_df$num_icu_beds[1]*input$prop_bed_for_covid/100
+        num_acute_beds_available = num_beds_df$num_acute_beds[1]*input$prop_acute_beds_for_covid/100
+        num_icu_beds_available = num_beds_df$num_icu_beds[1]*input$prop_icu_beds_for_covid/100
+        num_total_beds_available = num_acute_beds_available + num_icu_beds_available
         
         if (is.na(num_total_beds_available)) {
           county_no_info <- c(county_no_info, county)
@@ -429,7 +429,7 @@ server <- function(input, output, session) {
       }
       
       if (length(county_with_info) > 0) {
-        text = paste("<li>", "Assuming", paste0(toString(input$prop_bed_for_covid), "%"), "of beds available to COVID-19 cases,", input$state1, "has", format(round(acute_bed_total), big.mark=","),
+        text = paste(text, "<li>", "Assuming", paste0(toString(input$prop_acute_beds_for_covid), "%"), "of acute beds and", paste0(toString(input$prop_icu_beds_for_covid), "%"), "of ICU beds available to COVID-19 cases,", input$state1, "has", format(round(acute_bed_total), big.mark=","),
                      "acute beds and", format(round(icu_bed_total), big.mark=","), "ICU beds for COVID-19 cases.", collapse = " ")
       }
 
@@ -649,13 +649,12 @@ server <- function(input, output, session) {
        num_icu_beds = max(num_icu_beds, na.rm = TRUE)) %>%
       ungroup() %>%
       summarize(
-        num_total_beds = sum(num_total_beds, na.rm = TRUE),
         num_acute_beds = max(num_acute_beds, na.rm = TRUE),
         num_icu_beds = max(num_icu_beds, na.rm = TRUE))
 
-    num_total_beds_available = num_beds_df$num_total_beds[1]*input$prop_bed_for_covid/100
-    num_acute_beds_available = num_beds_df$num_acute_beds[1]*input$prop_bed_for_covid/100
-    num_icu_beds_available = num_beds_df$num_icu_beds[1]*input$prop_bed_for_covid/100
+    num_acute_beds_available = num_beds_df$num_acute_beds[1]*input$prop_acute_beds_for_covid/100
+    num_icu_beds_available = num_beds_df$num_icu_beds[1]*input$prop_icu_beds_for_covid/100
+    num_total_beds_available = num_acute_beds_available + num_icu_beds_available
     
     n_days <- input$num_days
     day_list <- c(0:n_days)
