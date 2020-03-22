@@ -64,7 +64,7 @@ ui <- shinyUI(
                                  sliderInput("num_days", "Number of Days to Model Ahead", 30, min = 1, max = 60),
                                  sliderInput("los_severe", "Length of Stay (Days) for Severe", 11, min = 1, max = 90),
                                  sliderInput("los_critical", "Length of Stay (Days) for Critical", 13, min = 1, max = 90),
-                                 sliderInput("days_to_hospitalization", "Days to hospitalization", 9, min = 0, max = 30),
+                                 # sliderInput("days_to_hospitalization", "Days to hospitalization", 9, min = 0, max = 30),
                                  sliderInput("prop_bed_for_covid", "% of Beds for COVID-19 Cases", 50, min = 0, max = 100),
                                  actionButton("reset", "Reset to default user inputs"),
                                  hr(),
@@ -545,13 +545,6 @@ server <- function(input, output, session) {
     #severe_without_intervention = severe_without_intervention - c(rep(0, input$los_severe), severe_without_intervention)[1:length(severe_without_intervention)]
     severe_without_intervention = get_hospitalizations(severe_without_intervention, input$los_severe, doubling_time)
     
-    # add days to hospitalization
-    stopifnot(length(critical_without_intervention) == length(severe_without_intervention))
-    total_number_of_days = length(critical_without_intervention)
-    critical_without_intervention = c(rep(0, input$days_to_hospitalization), critical_without_intervention)[1:total_number_of_days]
-    severe_without_intervention = c(rep(0, input$days_to_hospitalization), severe_without_intervention)[1:total_number_of_days]
-    
-    
     # cases with intervention
     dt_changes = c()
     if (input$submit != 0) {
@@ -576,12 +569,6 @@ server <- function(input, output, session) {
     critical_cases = get_hospitalizations(critical_cases, input$los_critical, doubling_time)
     #severe_cases = severe_cases - c(rep(0, input$los_severe), severe_cases)[1:length(severe_cases)]
     severe_cases = get_hospitalizations(severe_cases, input$los_severe, doubling_time)
-    
-    # add days to hospitalization
-    stopifnot(length(critical_cases) == length(severe_cases))
-    total_number_of_days = length(critical_cases)
-    critical_cases = c(rep(0, input$days_to_hospitalization), critical_cases)[1:total_number_of_days]
-    severe_cases = c(rep(0, input$days_to_hospitalization), severe_cases)[1:total_number_of_days]
     
     total_population <- sum(naive_estimations$combined_population_in_age_group)
     if ((severe_cases[n_days+1] + critical_cases[n_days + 1]) < 0.25*total_population) {
