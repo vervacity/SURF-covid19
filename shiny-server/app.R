@@ -61,7 +61,7 @@ ui <- shinyUI(
                                  sliderInput("num_days", "Number of Days to Model Ahead", 40, min = 1, max = 60),
                                  sliderInput("los_severe", "Length of Stay (Days) for Acute", 11, min = 1, max = 90),
                                  sliderInput("los_critical", "Length of Stay (Days) for ICU", 13, min = 1, max = 90),
-                                 sliderInput("days_to_hospitalization", "Days to hospitalization", 9, min = 0, max = 30),
+                                 sliderInput("days_to_hospitalization", "Days to Hospitalization", 9, min = 0, max = 30),
                                  sliderInput("prop_bed_for_covid", "% of Beds for COVID-19 Cases", 50, min = 0, max = 100),
                                  actionButton("reset", "Reset to default user inputs"),
                                  hr(),
