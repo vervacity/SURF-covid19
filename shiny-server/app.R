@@ -60,7 +60,8 @@ ui <- shinyUI(
                                  hr(),
                                  #h4("User Inputs"),
                                  uiOutput("num_cases"),
-                                 sliderInput("num_days", "Number of Days to Model Ahead", 40, min = 1, max = 60),
+                                 sliderInput("case_scaler", "Number of True Cases per Confirmed Case", 10, min = 5, max = 20),
+                                 sliderInput("num_days", "Number of Days to Model Ahead", 20, min = 1, max = 60),
                                  sliderInput("los_severe", "Length of Stay (Days) for Acute", 12, min = 1, max = 90),
                                  sliderInput("los_critical", "Length of Stay (Days) for ICU", 7, min = 1, max = 90),
                                  # sliderInput("days_to_hospitalization", "Days to Hospitalization", 9, min = 0, max = 30),
@@ -264,7 +265,7 @@ server <- function(input, output, session) {
     if (!is.finite(num_cases)) {num_cases <- 1}
     num_cases <- max(num_cases, 1)
     updateNumericInput(session, "num_cases", value = num_cases)
-    updateSliderInput(session, "num_days", value = 40)
+    updateSliderInput(session, "num_days", value = 20)
     updateNumericInput(session, "doubling_time", value = 7)
     updateNumericInput(session, "los_severe", value = 12)
     updateNumericInput(session, "los_critical", value = 7)
@@ -301,7 +302,7 @@ server <- function(input, output, session) {
   get_naive_estimations <- reactive({
     
     county_df <- get_county_df()
-    num_cases <- input$num_cases
+    num_cases <- input$num_cases * input$case_scaler
     doubling_time <- input$doubling_time
     
     combined_counties_severity_rates <- county_df %>% group_by(age_decade) %>% 
@@ -592,7 +593,7 @@ server <- function(input, output, session) {
     naive_estimations <- get_naive_estimations()
     
     n_days <- input$num_days
-    cases <- rep(input$num_cases, n_days+1)
+    cases <- rep(input$num_cases * input$case_scaler, n_days+1)
     fatal_cases <- rep(sum(naive_estimations['estimated_fatal_cases']), n_days+1)
     critical_cases <- rep(sum(naive_estimations['estimated_critical_cases']), n_days+1)
     severe_cases <- rep(sum(naive_estimations['estimated_severe_cases']), n_days+1)
