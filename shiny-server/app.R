@@ -249,16 +249,16 @@ server <- function(input, output, session) {
     if (is.null(input$county1)) {
       numericInput("num_cases", "Total Confirmed Cases (as of today)", 1, min = 1)
     } else {
-      num_cases <- sum((get_county_df() %>% group_by(County) %>% summarize(num_cases = max(Cases)) %>% filter(!is.na(num_cases)))$num_cases)
-      if (is.na(num_cases)) {num_cases <- 0}
+      num_cases <- sum((get_county_df() %>% group_by(County) %>% summarize(num_cases = max(Cases)) %>% filter(is.finite(num_cases)))$num_cases)
+      if (!is.finite(num_cases)) {num_cases <- 0}
       num_cases <- max(num_cases, 0)
       numericInput("num_cases", "Total Confirmed Cases (as of today)", num_cases, min = 1)
     }
   })
     
   observeEvent(input$reset, {
-    num_cases <- sum((get_county_df() %>% group_by(County) %>% summarize(num_cases = max(Cases)) %>% filter(!is.na(num_cases)))$num_cases)
-    if (is.na(num_cases)) {num_cases <- 1}
+    num_cases <- sum((get_county_df() %>% group_by(County) %>% summarize(num_cases = max(Cases)) %>% filter(is.finite(num_cases)))$num_cases)
+    if (!is.finite(num_cases)) {num_cases <- 1}
     num_cases <- max(num_cases, 1)
     updateNumericInput(session, "num_cases", value = num_cases)
     updateSliderInput(session, "num_days", value = 40)
@@ -323,7 +323,7 @@ server <- function(input, output, session) {
   output$text1 <- renderText({
     req(input$county1)
     
-    if(is.na(input$doubling_time)) {
+    if(!is.finite(input$doubling_time)) {
       return("<span style='color: red;'>Enter a Doubling Time on the left to generate a forecast</span>")
     }
     
@@ -371,7 +371,7 @@ server <- function(input, output, session) {
         num_icu_beds_available = num_beds_df$num_icu_beds[1]*input$prop_icu_beds_for_covid/100
         num_total_beds_available = num_acute_beds_available + num_icu_beds_available
         
-        if (is.na(num_total_beds_available)) {
+        if (!is.finite(num_total_beds_available)) {
           county_no_info <- c(county_no_info, county)
         } else {
           if(add_assumption) {
@@ -426,7 +426,7 @@ server <- function(input, output, session) {
         num_icu_beds_available = num_beds_df$num_icu_beds[1]*input$prop_icu_beds_for_covid/100
         num_total_beds_available = num_acute_beds_available + num_icu_beds_available
         
-        if (is.na(num_total_beds_available)) {
+        if (!is.finite(num_total_beds_available)) {
           county_no_info <- c(county_no_info, county)
         } else {
           county_with_info <- c(county_with_info, county)
@@ -542,8 +542,8 @@ server <- function(input, output, session) {
   
   get_dt_changes <- reactive({
     n_days = input$num_days
-    valid_pair <- function(dt, day) {
-      if (is.na(dt) | is.na(day)) {return(FALSE)}
+    valid_pair <- function(dt, day) { 
+      if (!is.finite(dt) | !is.finite(day)) {return(FALSE)}
       if (day != as.integer(day)) {return(FALSE)}
       if (day >= n_days | day < 1) {return(FALSE)}
       return(TRUE)
@@ -611,7 +611,7 @@ server <- function(input, output, session) {
     
     # cases with intervention
     dt_changes = c()
-    if (!is.na(input$day_change_1) & input$day_change_1 > 0 & !is.na(input$double_change_1) & input$double_change_1 > 0) {
+    if (is.finite(input$day_change_1) & input$day_change_1 > 0 & is.finite(input$double_change_1) & input$double_change_1 > 0) {
       dt_changes = get_dt_changes()
     }
     
@@ -703,7 +703,7 @@ server <- function(input, output, session) {
       coord_cartesian(ylim=c(0, max(critical_cases + severe_cases))) +
       ggtitle("COVID-19 cases requiring hospitalization")
     
-    if (!is.na(input$day_change_1) & input$day_change_1 > 0 & !is.na(input$double_change_1) & input$double_change_1 > 0) {
+    if (is.finite(input$day_change_1) & input$day_change_1 > 0 & is.finite(input$double_change_1) & input$double_change_1 > 0) {
       dt_changes = get_dt_changes()
       days <- dt_changes[c(FALSE, TRUE)]
       for (i in days) {
@@ -714,19 +714,19 @@ server <- function(input, output, session) {
       }
     }
     
-    if(!is.na(num_total_beds_available)) {
+    if(is.finite(num_total_beds_available)) {
       gp = gp +
         geom_hline(yintercept = num_total_beds_available, linetype = "dashed", color = 'grey') + 
         annotate("text", x = Sys.Date() + 0.5*n_days, y = num_total_beds_available*1.05, label = "Total Beds for COVID Patients", vjust=1, hjust=0, color = 'grey')
     }
     
-    if(!is.na(num_acute_beds_available)) {
+    if(is.finite(num_acute_beds_available)) {
       gp = gp +
         geom_hline(yintercept = num_acute_beds_available, linetype = "dashed", color = 'grey') + 
         annotate("text", x = Sys.Date() + 0.5*n_days, y = num_acute_beds_available*1.05, label = "Acute Beds for COVID Patients", vjust=1, hjust=0, color = 'grey')
     }
     
-    if(!is.na(num_icu_beds_available)) {
+    if(is.finite(num_icu_beds_available)) {
       gp = gp +
         geom_hline(yintercept = num_icu_beds_available, linetype = "dashed", color = 'grey') + 
         annotate("text", x = Sys.Date() + 0.5*n_days, y = num_icu_beds_available*1.05, label = "ICU Beds for COVID Patients", vjust=1, hjust=0, color = 'grey')
