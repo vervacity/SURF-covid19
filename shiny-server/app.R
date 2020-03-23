@@ -91,6 +91,7 @@ ui <- shinyUI(
                           )
                         ),
                         width = 3
+                      
                       ),
                       mainPanel(
                         h4("This is a planning tool, not a prediction. To generate a forecast, enter the doubling time for your region (and modify the total confirmed number of COVID-19 cases if necessary). See the Documentation tab for methodology."),
