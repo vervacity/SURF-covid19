@@ -313,7 +313,7 @@ server <- function(input, output, session) {
     
     county_df <- get_county_df()
     
-    input_hospitalizations <- input$input_radio == 2
+    input_hospitalizations <- (input$input_radio == 2)
     doubling_time <- input$doubling_time
     
     num_cases <- input$num_cases
@@ -321,6 +321,10 @@ server <- function(input, output, session) {
     if(!input_hospitalizations) {
       # Scale total cases if confirmed cases are given instead of hospitalizations
       num_cases <- num_cases * input$case_scaler
+    } else {
+      validate(
+        need(num_cases > 0, "There are no reported hospitalizations in this county. To run the model enter a non-zero number of hospitalizations.")
+      )
     }
     
     combined_counties_severity_rates <- county_df %>% group_by(age_decade) %>% 
