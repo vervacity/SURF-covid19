@@ -467,7 +467,7 @@ server <- function(input, output, session) {
     acute_beds_remaining = acute_bed_total - severe_without_intervention
     icu_days_to_fill = min(which(icu_beds_remaining<=0)) - 1
     acute_days_to_fill = min(which(acute_beds_remaining<=0)) - 1
-    
+
     if (icu_bed_total > 0) {
       if(icu_days_to_fill > 0 & icu_days_to_fill < Inf) {
         text <- paste(c(text, '<li>Assuming no changes to the doubling time, the number of people requiring ICU beds will exceed the number of available ICU beds in ', icu_days_to_fill, " days. </li>"), collapse = "")
@@ -665,12 +665,14 @@ server <- function(input, output, session) {
        num_total_beds = max(num_acute_beds+num_icu_beds, na.rm = TRUE),
        num_acute_beds = max(num_acute_beds, na.rm = TRUE),
        num_icu_beds = max(num_icu_beds, na.rm = TRUE)) %>%
+      filter(is.finite(num_total_beds)) %>% filter(is.finite(num_acute_beds)) %>% filter(is.finite(num_icu_beds)) %>% 
       ungroup() %>%
       summarize(
-        num_acute_beds = max(num_acute_beds, na.rm = TRUE),
-        num_icu_beds = max(num_icu_beds, na.rm = TRUE))
+        num_acute_beds = sum(num_acute_beds, na.rm = TRUE),
+        num_icu_beds = sum(num_icu_beds, na.rm = TRUE))
 
     num_acute_beds_available = num_beds_df$num_acute_beds[1]*input$prop_acute_beds_for_covid/100
+    print(num_acute_beds_available)
     num_icu_beds_available = num_beds_df$num_icu_beds[1]*input$prop_icu_beds_for_covid/100
     num_total_beds_available = num_acute_beds_available + num_icu_beds_available
     
