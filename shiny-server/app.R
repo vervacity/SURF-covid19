@@ -694,9 +694,6 @@ server <- function(input, output, session) {
     chart_data[chart_data$variable == 'critical_cases', 'variable'] <-  'ICU Cases'
     #chart_data[chart_data$variable == 'fatal_cases', 'variable'] <-  'Cumulative Fatal Cases'
 
-    ggplot(chart_data,
-           aes(x=date, y=value, group=variable, text = sprintf("date:  %s \n cases: %i", date, value)))
-    
     gp = ggplot(chart_data,
                 aes(x=date, y=value, group=variable, text = sprintf("date:  %s \n cases: %i", date, value))) +
       geom_line(aes(linetype = variable, size = variable, color = variable)) +  guides(linetype=FALSE) + guides(size=FALSE) +
