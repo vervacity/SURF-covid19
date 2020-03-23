@@ -379,7 +379,7 @@ server <- function(input, output, session) {
           acute_bed_total <- acute_bed_total + num_acute_beds_available
           icu_bed_total <- icu_bed_total + num_icu_beds_available
           bed_text = paste(county, 'has', round(num_acute_beds_available), 'acute beds and', round(num_icu_beds_available), 'ICU beds for COVID-19 cases. ', collapse = " ")
-          text = paste(text, bed_text, sep = '')
+          text = paste(text, bed_text, sep = ' ')
         }
       }
       
