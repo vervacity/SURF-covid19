@@ -51,6 +51,7 @@ ui <- shinyUI(
                         fluidRow(
                           column(12, 
                                  uiOutput("state_selector_1"),
+                                 checkboxInput("state_all_selector", "All Counties", value = FALSE),
                                  uiOutput("county_selector_1"),
                                  HTML("<b>Estimated Doubling Time for Cases Requiring Hospitalization (Days)</b>"),
                                  p("To generate a forecast, enter a doubling time below."),
@@ -220,13 +221,15 @@ server <- function(input, output, session) {
   output$county_selector_1 <- renderUI({#creates County select box object called in ui
     
     req(input$state1)
-    data_available = df[df$State == input$state1, "County"]
-    
-    selectInput(inputId = "county1", #name of input
-                label = "County:", #label displayed in ui
-                choices = c('All', sort(unique(data_available))), #calls list of available counties
-                selected = if (input$state1 == 'California') 'Santa Clara County' else sort(unique(data_available)[2]),
-                multiple = TRUE)
+    if (!input$state_all_selector) {
+      data_available = df[df$State == input$state1, "County"]
+      
+      selectInput(inputId = "county1", #name of input
+                  label = "County:", #label displayed in ui
+                  choices = sort(unique(data_available)), #calls list of available counties
+                  selected = if (input$state1 == 'California') 'Santa Clara County' else sort(unique(data_available)[2]),
+                  multiple = TRUE)
+    }
   })
 
   
@@ -234,7 +237,7 @@ server <- function(input, output, session) {
     state <- input$state1
     state_df <- df %>% filter(State == state)
     counties <- input$county1
-    if (!('All' %in% counties)) {
+    if (!input$state_all_selector) {
       return(state_df %>% filter(County %in% counties))
     } else {
       return (state_df)
@@ -330,7 +333,7 @@ server <- function(input, output, session) {
     text = "<ul>"
     
     # Population bullet
-    if (!('All' %in% input$county1)) {
+    if (!input$state_all_selector) {
       for (county in input$county1) {
         under_60 = sum((county_df %>% filter(age_decade %in% c('0-9','10-19','20-29','30-39','40-49','50-59') & County == county))$population_in_age_group)
         over_60 = sum((county_df %>% filter(age_decade %in% c('60-69', '70-79', '80+') & County == county))$population_in_age_group)
@@ -349,7 +352,7 @@ server <- function(input, output, session) {
     }
     
     # Hospital Beds bullet
-    if (!('All' %in% input$county1)) {
+    if (!input$state_all_selector) {
       acute_bed_total <- 0
       icu_bed_total <- 0
       county_no_info <- c()
