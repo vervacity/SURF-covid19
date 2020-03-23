@@ -93,6 +93,8 @@ ui <- shinyUI(
                         width = 3
                       ),
                       mainPanel(
+                        
+                        tags$head(tags$style(".shiny-output-error{color: green;}")),
                         h4("This is a planning tool, not a prediction. To generate a forecast, enter the doubling time for your region (and modify the total confirmed number of COVID-19 cases if necessary). See the Documentation tab for methodology."),
                         hr(),
                         htmlOutput("text1"),
@@ -630,19 +632,18 @@ server <- function(input, output, session) {
     severe_cases = get_hospitalizations(severe_cases, input$los_severe, doubling_time)
     
     total_population <- sum(naive_estimations$combined_population_in_age_group)
-    if ((severe_cases[n_days+1] + critical_cases[n_days + 1]) < 0.25*total_population) {
-      return_cases <- list(
-        "fatal" = fatal_cases, 
-        "critical" = critical_cases, 
-        "severe" = severe_cases,
-        "critical_without_intervention" = critical_without_intervention,
-        "severe_without_intervention" = severe_without_intervention)
-      return(return_cases)
-    } else {
-      stop(safeError(
-        "Current data are insufficient to reliably model infection rates this high. The model will be updated as more data become available. To proceed, reduce the initial number; or reduce the days to model; or increase the doubling time."
-      ))
-    }
+    validate(
+      need((severe_cases[n_days+1] + critical_cases[n_days + 1]) < 0.25*total_population, 
+           "Current data are insufficient to reliably model infection rates this high. The model will be updated as more data become available. To proceed, reduce the initial number; or reduce the days to model; or increase the doubling time.")
+    )
+  
+    return_cases <- list(
+      "fatal" = fatal_cases, 
+      "critical" = critical_cases, 
+      "severe" = severe_cases,
+      "critical_without_intervention" = critical_without_intervention,
+      "severe_without_intervention" = severe_without_intervention)
+    return(return_cases)
   })
   
   output$plot1 <- renderPlotly({
