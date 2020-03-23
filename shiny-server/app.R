@@ -253,19 +253,19 @@ server <- function(input, output, session) {
     req(input$state1)
     
     if (is.null(input$county1) & input$input_radio == 1) {
-      numericInput("num_cases", "Total Confirmed Cases (as of today)", 1, min = 1)
+      numericInput("num_cases", "Cumulative Confirmed Cases (as of today)", 1, min = 1)
       
     } else if (input$input_radio == 1) {
       num_cases <- sum((get_county_df() %>% group_by(County) %>% summarize(num_cases = max(Cases)) %>% filter(is.finite(num_cases)))$num_cases)
       if (!is.finite(num_cases)) {num_cases <- 0}
       num_cases <- max(num_cases, 0)
-      numericInput("num_cases", "Total Confirmed Cases (as of today)", num_cases, min = 1)
+      numericInput("num_cases", "Cumulative Confirmed Cases (as of today)", num_cases, min = 1)
       
     } else if (is.null(input$county1) & input$input_radio == 2) {
-      numericInput("num_cases", "Total Hospitalizations (as of today)", 1, min = 1)
+      numericInput("num_cases", "Cumulative Hospitalizations (as of today)", 1, min = 1)
       
     } else {
-      numericInput("num_cases", "Total Hospitalizations (as of today)", 0, min = 1)
+      numericInput("num_cases", "Cumulative Hospitalizations (as of today)", 0, min = 1)
     }
     
   })
@@ -312,8 +312,16 @@ server <- function(input, output, session) {
   get_naive_estimations <- reactive({
     
     county_df <- get_county_df()
-    num_cases <- input$num_cases * input$case_scaler
+    
+    input_hospitalizations <- input$input_radio == 2
     doubling_time <- input$doubling_time
+    
+    num_cases <- input$num_cases
+    
+    if(!input_hospitalizations) {
+      # Scale total cases if confirmed cases are given instead of hospitalizations
+      num_cases <- num_cases * input$case_scaler
+    }
     
     combined_counties_severity_rates <- county_df %>% group_by(age_decade) %>% 
       summarise(
@@ -321,12 +329,25 @@ server <- function(input, output, session) {
         wtd_case_fatality_rate = weighted.mean(case_fatality_rate, population_in_age_group),
         wtd_critical_case_rate = weighted.mean(critical_case_rate, population_in_age_group),
         wtd_severe_cases_rate = weighted.mean(severe_cases_rate, population_in_age_group)
+      ) %>%
+      mutate(
+        wtd_icu_prop_of_hosp = wtd_critical_case_rate / (wtd_critical_case_rate + wtd_severe_cases_rate),
+        wtd_hosp_rate = wtd_critical_case_rate + wtd_severe_cases_rate
       )
     
     naive_estimations <- combined_counties_severity_rates %>%
-      mutate(relative_pop = combined_population_in_age_group/sum(combined_population_in_age_group)) %>%
-      mutate(estimated_cases = num_cases*relative_pop) %>% 
-      mutate(estimated_cases = num_cases*relative_pop) %>% 
+      mutate(relative_pop = combined_population_in_age_group/sum(combined_population_in_age_group))
+    
+    if(input_hospitalizations) {
+      # Infer true cases from hospitalizations and hospitalization rate if hospitalization count is given instead of confirmed case count
+      naive_estimations <- naive_estimations %>%
+        mutate(estimated_cases = num_cases*relative_pop/wtd_hosp_rate)
+    } else {
+      naive_estimations <- naive_estimations %>%
+        mutate(estimated_cases = num_cases*relative_pop)
+    }
+    
+    naive_estimations <- naive_estimations %>% 
       mutate(estimated_fatal_cases = estimated_cases*wtd_case_fatality_rate) %>% 
       mutate(estimated_critical_cases = estimated_cases*wtd_critical_case_rate) %>% 
       mutate(estimated_severe_cases = estimated_cases*wtd_severe_cases_rate)
@@ -752,7 +773,7 @@ server <- function(input, output, session) {
     
     ggplotly(gp, tooltip = 'text') %>% 
       layout(
-        legend = list(x = 0.02, y = 0.1, bgcolor = 'rgba(0,0,0,0)'),
+        legend = list(x = 0.02, y = 0.9, bgcolor = 'rgba(0,0,0,0)'),
         xaxis=list(fixedrange=TRUE),
         yaxis=list(fixedrange=TRUE)) %>% 
       config(displayModeBar = F)
