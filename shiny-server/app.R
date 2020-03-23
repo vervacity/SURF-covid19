@@ -59,6 +59,7 @@ ui <- shinyUI(
                                  numericInput("doubling_time", NULL, value = NA, min = 1, max = 20),
                                  hr(),
                                  #h4("User Inputs"),
+                                 radioButtons("input_radio", inline=TRUE, label = "Input Current Count of:", choices = list("Confirmed Cases" = 1, "Hospitalizations" = 2), selected = 1),
                                  uiOutput("num_cases"),
                                  sliderInput("case_scaler", "Number of True Cases per Confirmed Case", 10, min = 5, max = 20),
                                  sliderInput("num_days", "Number of Days to Model Ahead", 20, min = 1, max = 60),
@@ -250,14 +251,23 @@ server <- function(input, output, session) {
 
   output$num_cases <- renderUI({
     req(input$state1)
-    if (is.null(input$county1)) {
+    
+    if (is.null(input$county1) & input$input_radio == 1) {
       numericInput("num_cases", "Total Confirmed Cases (as of today)", 1, min = 1)
-    } else {
+      
+    } else if (input$input_radio == 1) {
       num_cases <- sum((get_county_df() %>% group_by(County) %>% summarize(num_cases = max(Cases)) %>% filter(is.finite(num_cases)))$num_cases)
       if (!is.finite(num_cases)) {num_cases <- 0}
       num_cases <- max(num_cases, 0)
       numericInput("num_cases", "Total Confirmed Cases (as of today)", num_cases, min = 1)
+      
+    } else if (is.null(input$county1) & input$input_radio == 2) {
+      numericInput("num_cases", "Total Hospitalizations (as of today)", 1, min = 1)
+      
+    } else {
+      numericInput("num_cases", "Total Hospitalizations (as of today)", 0, min = 1)
     }
+    
   })
     
   observeEvent(input$reset, {
