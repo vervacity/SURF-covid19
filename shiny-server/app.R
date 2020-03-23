@@ -29,6 +29,7 @@ library(viridis)
 library(plotly)
 library(reshape2)
 library(usmap)
+library(scales)
 
 df <- read.csv('county_age_severity_rates_v6.csv', stringsAsFactors = FALSE)
 df$County <- gsub('city', 'City', df$County)
@@ -672,7 +673,6 @@ server <- function(input, output, session) {
         num_icu_beds = sum(num_icu_beds, na.rm = TRUE))
 
     num_acute_beds_available = num_beds_df$num_acute_beds[1]*input$prop_acute_beds_for_covid/100
-    print(num_acute_beds_available)
     num_icu_beds_available = num_beds_df$num_icu_beds[1]*input$prop_icu_beds_for_covid/100
     num_total_beds_available = num_acute_beds_available + num_icu_beds_available
     
@@ -693,6 +693,9 @@ server <- function(input, output, session) {
     chart_data[chart_data$variable == 'severe_cases', 'variable'] <-  'Acute Cases'
     chart_data[chart_data$variable == 'critical_cases', 'variable'] <-  'ICU Cases'
     #chart_data[chart_data$variable == 'fatal_cases', 'variable'] <-  'Cumulative Fatal Cases'
+
+    ggplot(chart_data,
+           aes(x=date, y=value, group=variable, text = sprintf("date:  %s \n cases: %i", date, value)))
     
     gp = ggplot(chart_data,
                 aes(x=date, y=value, group=variable, text = sprintf("date:  %s \n cases: %i", date, value))) +
@@ -703,8 +706,9 @@ server <- function(input, output, session) {
       theme_minimal() +
       ylab("Number of cases") + xlab('Date')  +
       coord_cartesian(ylim=c(0, max(critical_cases + severe_cases))) +
+      scale_x_date(name="Date", labels = date_format("%b %d",tz = "EST")) +
       ggtitle("COVID-19 cases requiring hospitalization")
-    
+
     if (is.finite(input$day_change_1) & input$day_change_1 > 0 & is.finite(input$double_change_1) & input$double_change_1 > 0) {
       dt_changes = get_dt_changes()
       days <- dt_changes[c(FALSE, TRUE)]
