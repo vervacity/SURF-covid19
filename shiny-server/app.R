@@ -63,7 +63,7 @@ ui <- shinyUI(
                                  sliderInput("num_days", "Number of Days to Model Ahead", 40, min = 1, max = 60),
                                  sliderInput("los_severe", "Length of Stay (Days) for Acute", 12, min = 1, max = 90),
                                  sliderInput("los_critical", "Length of Stay (Days) for ICU", 7, min = 1, max = 90),
-                                 sliderInput("days_to_hospitalization", "Days to Hospitalization", 9, min = 0, max = 30),
+                                 # sliderInput("days_to_hospitalization", "Days to Hospitalization", 9, min = 0, max = 30),
                                  sliderInput("prop_acute_beds_for_covid", "% of Acute Beds for COVID-19 Cases", 50, min = 0, max = 100),
                                  sliderInput("prop_icu_beds_for_covid", "% of ICU Beds for COVID-19 Cases", 50, min = 0, max = 100),
                                  actionButton("reset", "Reset to default user inputs"),
@@ -186,9 +186,11 @@ ui <- shinyUI(
                           br(),
                           a(href="https://www.thelancet.com/journals/lancet/article/PIIS0140-6736(20)30566-3/fulltext", target = '_blank', "[4] 7-day LOS for ICU cases and 12-day LOS for acute cases; Days from symptom onset to hospital admission; Definitions of Severe and Critical cases"),
                           br(),
-                          a(href="https://www.thelancet.com/journals/lanres/article/PIIS2213-2600(20)30079-5/fulltext", target = '_blank', "[5] 9.5 days from symptom onset to ICU admission"),
+                          # a(href="https://www.thelancet.com/journals/lanres/article/PIIS2213-2600(20)30079-5/fulltext", target = '_blank', "[5] 9.5 days from symptom onset to ICU admission"),
+                          # br(),
+                          a(href="https://usafacts.org/visualizations/coronavirus-covid-19-spread-map/", target = '_blank', "[5] Default values of cases by county"),
                           br(),
-                          a(href="https://usafacts.org/visualizations/coronavirus-covid-19-spread-map/", target = '_blank', "[6] Default values of cases by county"),
+                          a(href="https://science.sciencemag.org/content/early/2020/03/13/science.abb3221.long", target = '_blank', "[6] Estimated 86% (95% CI: [82% - 90%]) of infections went undocumented within China prior to travel restrictions"),
                           br(),
                           br(),
                           br(),
@@ -196,9 +198,9 @@ ui <- shinyUI(
                           img(src = "email2.png", height = 17.5, width = 'auto'),
                           hr(),
                           strong("Created by:"), 
-                          p("Johannes Opsahl Ferstad, Angela Gu, Raymond Ye Lee, Isha Thapa, Alejandro Martinez, Andy Shin, Joshua Salomon, Peter Glynn, Kevin Schulman, David Scheinker"),
+                          p("Johannes Opsahl Ferstad, Angela Gu, Raymond Ye Lee, Isha Thapa, Alejandro Martinez, Andy Shin, Joshua Salomon, Peter Glynn, Nigam Shah, Kevin Schulman, David Scheinker"),
                           strong("For their help, we thank:"),
-                          p("Nigam Shah, Amber Levine, Grace Lee, Teng Zhang, Jacqueline Jil Vallon, Francesca Briganti, and Arnold Milstein"),
+                          p("Amber Levine, Grace Lee, Teng Zhang, Jacqueline Jil Vallon, Francesca Briganti, and Arnold Milstein"),
                           br(),
                           img(src = "SURF.png", height = 60, width = 'auto'),
                           img(src = "CERC.png", height = 60, width = 'auto'),
@@ -266,7 +268,7 @@ server <- function(input, output, session) {
     updateNumericInput(session, "doubling_time", value = 7)
     updateNumericInput(session, "los_severe", value = 12)
     updateNumericInput(session, "los_critical", value = 7)
-    updateNumericInput(session, "days_to_hospitalization", value = 9)
+    # updateNumericInput(session, "days_to_hospitalization", value = 9)
     updateSliderInput(session, "prop_acute_beds_for_covid", value = 50)
     updateSliderInput(session, "prop_icu_beds_for_covid", value = 50)
   })
@@ -560,21 +562,23 @@ server <- function(input, output, session) {
   # Function to get hospitalizations from cumulative cases, with projection backwards from cuendat cases to prevent jump at day LOS
   get_hospitalizations = function(cumulative_cases, los, doubling_time) {
       
+      days_to_hospitalization = 0
+      
       # project back los + days to hospitalization days
-      back_vec = c(rep(NA, los + input$days_to_hospitalization), cumulative_cases)
-      for (i in (los + input$days_to_hospitalization):1) {
+      back_vec = c(rep(NA, los + days_to_hospitalization), cumulative_cases)
+      for (i in (los + days_to_hospitalization):1) {
           back_vec[i] = back_vec[i + 1]/2^(1/doubling_time)
       }
       
       # get indices of original vectors
-      original_start = los + input$days_to_hospitalization + 1
-      original_end = los + input$days_to_hospitalization + length(cumulative_cases)
+      original_start = los + days_to_hospitalization + 1
+      original_end = los + days_to_hospitalization + length(cumulative_cases)
       stopifnot(all.equal(back_vec[original_start:original_end], cumulative_cases))
       stopifnot(length(back_vec) == original_end)
       
       # get indices of vectors shifted by days to hospitalization
-      shifted_start = original_start - input$days_to_hospitalization
-      shifted_end = original_end - input$days_to_hospitalization
+      shifted_start = original_start - days_to_hospitalization
+      shifted_end = original_end - days_to_hospitalization
       
       # subtract off for length of stay
       return_vec = back_vec[shifted_start:shifted_end] - back_vec[(shifted_start - los):(shifted_end - los)]
