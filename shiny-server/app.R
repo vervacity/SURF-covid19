@@ -555,20 +555,20 @@ server <- function(input, output, session) {
   get_hospitalizations = function(cumulative_cases, los, doubling_time) {
       
       # project back los + days to hospitalization days
-      back_vec = c(rep(NA, los + days_to_hospitalization), cumulative_cases)
-      for (i in (los + days_to_hospitalization):1) {
+      back_vec = c(rep(NA, los + input$days_to_hospitalization), cumulative_cases)
+      for (i in (los + input$days_to_hospitalization):1) {
           back_vec[i] = back_vec[i + 1]/2^(1/doubling_time)
       }
       
       # get indices of original vectors
-      original_start = los + days_to_hospitalization + 1
-      original_end = los + days_to_hospitalization + length(cumulative_cases)
+      original_start = los + input$days_to_hospitalization + 1
+      original_end = los + input$days_to_hospitalization + length(cumulative_cases)
       stopifnot(all.equal(back_vec[original_start:original_end], cumulative_cases))
       stopifnot(length(back_vec) == original_end)
       
       # get indices of vectors shifted by days to hospitalization
-      shifted_start = original_start - days_to_hospitalization
-      shifted_end = original_end - days_to_hospitalization
+      shifted_start = original_start - input$days_to_hospitalization
+      shifted_end = original_end - input$days_to_hospitalization
       
       # subtract off for length of stay
       return_vec = back_vec[shifted_start:shifted_end] - back_vec[(shifted_start - los):(shifted_end - los)]
