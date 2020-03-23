@@ -250,8 +250,8 @@ server <- function(input, output, session) {
       numericInput("num_cases", "Total Confirmed Cases (as of today)", 1, min = 1)
     } else {
       num_cases <- sum((get_county_df() %>% group_by(County) %>% summarize(num_cases = max(Cases)) %>% filter(!is.na(num_cases)))$num_cases)
-      if (is.na(num_cases)) {num_cases <- 1}
-      num_cases <- max(num_cases, 1)
+      if (is.na(num_cases)) {num_cases <- 0}
+      num_cases <- max(num_cases, 0)
       numericInput("num_cases", "Total Confirmed Cases (as of today)", num_cases, min = 1)
     }
   })
@@ -556,7 +556,7 @@ server <- function(input, output, session) {
     return(dt_changes)
   })
   
-  # Function to get hospitalizations from cumulative cases, with projection backwards from current cases to prevent jump at day LOS
+  # Function to get hospitalizations from cumulative cases, with projection backwards from cuendat cases to prevent jump at day LOS
   get_hospitalizations = function(cumulative_cases, los, doubling_time) {
       
       # project back los + days to hospitalization days
@@ -636,6 +636,7 @@ server <- function(input, output, session) {
     
     total_population <- sum(naive_estimations$combined_population_in_age_group)
     validate(
+      need(cases[1] != 0, "There are no reported cases in this county. To run the model enter a non-zero number of cases."),
       need((severe_cases[n_days+1] + critical_cases[n_days + 1]) < 0.25*total_population, 
            "Current data are insufficient to reliably model infection rates this high. The model will be updated as more data become available. To proceed, reduce the initial number; or reduce the days to model; or increase the doubling time.")
     )
