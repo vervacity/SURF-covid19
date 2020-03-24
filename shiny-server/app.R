@@ -51,6 +51,7 @@ ui <- shinyUI(
              
              tabPanel("Calculator",
                       sidebarPanel(
+                        
                         fluidRow(
                           column(12, 
                                  p("Select a state and county or group of counties."),
@@ -58,14 +59,14 @@ ui <- shinyUI(
                                  checkboxInput("state_all_selector", "All Counties", value = FALSE),
                                  uiOutput("county_selector_1"),
                                  hr(),
-                                 p('If available, input the number of COVID-19 hospitalizations.'),
-                                 radioButtons("input_radio", inline=TRUE, label = "Input Current Count of:", choices = list("Confirmed Cases" = 1, "Hospitalizations" = 2), selected = 1),
+                                 p('If available, input the number of cumulative COVID-19 hospitalizations.'),
+                                 radioButtons("input_radio", inline=TRUE, label = "Input:", choices = list("Confirmed Cases" = 1, "Hospitalizations" = 2), selected = 1),
                                  uiOutput("num_cases"),
                                  hr(),
                                  p('Enter the doubling time, the number of days until the cumulative number of hospitalization/cases doubles.'),
-                                 strong("Estimated Doubling Time for Cases Requiring Hospitalization (Days)"),
-                                 br(),
-                                 br(),
+                                 #strong("Estimated Doubling Time for Cases Requiring Hospitalization (Days)"),
+                                 # br(),
+                                 # br(),
                                  numericInput("doubling_time", NULL, value = 6, min = 1, max = 20),
                                  uiOutput("case_scaler"),
                                  hr(),
@@ -73,7 +74,7 @@ ui <- shinyUI(
                                  hr(),
                                  h4("Simulation of Intervention"),
                                  p("To simulate the effects of social distancing, select the reduction in 'effective contacts' starting today:"),
-                                 br(),
+                                 HTML('<div style = "display: block; width: 100%; height: 0.25em;"></div>'),
                                  radioButtons("social_distancing_effect", label = NULL, 
                                               choices = list(
                                                 "No reduction" = 0,
@@ -178,24 +179,37 @@ ui <- shinyUI(
              tabPanel("Documentation",
                       fluidPage(
                         mainPanel(
-                          h4(a(href='https://docs.google.com/spreadsheets/d/1pIGNv4EiXOjLXNvIoJUEGy6681Pf3LHbRQzzuFjAtSs/', "Click here for the metholodogy.",
+                          
+                          HTML('
+                            <blockquote style="font-size: 1em;">
+                            For each US county, the model accepts as an input the number of COVID-19 hospitalizations and the associated doubling time, if these are available. If these are not available, the model imports the latest number of confirmed cases from the USA facts online repository and accepts user-entered parameters of the ratio of total cases to confirmed cases (e.g. 51) and the COVID-19 population-level doubling time (e.g. 6 days). <br /><br />
+                            The effects of interventions that mitigate the spread of infection (such as social distancing) are simulated with user-entered parameters of the changes in doubling time and the days of those changes. The model estimates county-specific hospitalization rates by combining age-distributions derived from the US census and age-group specific estimates of the case rates of severe symptoms, critical symptoms, and mortality (together morbidity) derived from the Imperial College COVID-19 Response Team.<br /><br />
+                            The model estimates the number of people requiring hospitalization using the initial numbers, the doubling time, and the population-specific rates and then compares these to the numbers of relevant beds derived from data from the American Hospital Association. The default assumptions are that: people requiring hospitalization are hospitalized on the day they test positive (the assumptions will change when non-symptomatic people start being tested); those with severe and critical symptoms spend, respectively, 12 days in acute care and 7 days in intensive care; and 50% of each type of bed is available for COVID-19+ patients. 
+                            </blockquote>'),
+                          
+                          h4(a(href='https://medrxiv.org', "Click here for the full metholodogy.",
                                target = '_blank')),
                           br(),
-                          h4(a(href='https://docs.google.com/spreadsheets/d/1TvrI02sSly5JlLj4kol9NoPs7EOj9jrfu4hHdXUQL3M/', "Click here for the county-specific severity rates.",
+                          h4(a(href='https://docs.google.com/spreadsheets/d/1x9IjGEjLRO_8Tz7Y6Nf6rOeUsItZfMjoj83Qf5D9jo0/', "Click here for the county-age population numbers and severity rates we use as input.",
                                target = '_blank')),
                           br(),
-                          h4(a(href='https://docs.google.com/spreadsheets/d/1x9IjGEjLRO_8Tz7Y6Nf6rOeUsItZfMjoj83Qf5D9jo0/', "Click here for the age-specific severity rates.",
-                               target = '_blank')),
-                          br(),
+                          
                           h4("Definitions"),
                           HTML("<b>Doubling time</b> is defined by the amount of time it takes a population to double in size. In this case, assuming exponential 
                             growth in the number of COVID-19 cases, we are defining the doubling time as the number of days it takes for cases to double."),
                           uiOutput("formula"),
                           HTML('For more details, see this <a href="https://www.nejm.org/doi/full/10.1056/NEJMoa2001316">analysis</a> of COVID-19 doubling time.'),
                           br(),br(),
-                          HTML('<b>Acute/Severe Cases</b> are adult cases meeting any of the following criteria: 1. Respiratory distress (≧30 breaths/ min); 2. Oxygen saturation≤93% at rest; 3. Arterial partial pressure of oxygen (PaO2)/fraction of inspired oxygen (FiO2)≦300mmHg (l mmHg=0.133kPa). >50% of cases with chest imaging that showed obvious lesion progression within 24-48 hours are managed as severe cases.'),
+                          HTML('<b>Acute/Severe Cases</b> are adult cases meeting any of the following criteria: <ol>
+                               <li>Respiratory distress (≧30 breaths/ min);</li>
+                               <li>Oxygen saturation≤93% at rest;</li>
+                               <li>Arterial partial pressure of oxygen (PaO2)/fraction of inspired oxygen (FiO2)≦300mmHg (l mmHg=0.133kPa).</li></ol>
+                               >50% of cases with chest imaging that showed obvious lesion progression within 24-48 hours are managed as severe cases.'),
                           br(),br(),
-                          HTML('<b>ICU/Critical Cases</b> are cases meeting any of the following criteria: 1. Respiratory failure and requiring mechanical ventilation; 2. Shock; 3. Other organ failure that requires ICU care.'),
+                          HTML('<b>ICU/Critical Cases</b> are cases meeting any of the following criteria: <ol>
+                               <li>Respiratory failure and requiring mechanical ventilation;</li>
+                               <li>Shock;</li>
+                               <li>Other organ failure that requires ICU care.</li></ol>'),
                           br(),
                           br(),
                           h4("References"),
@@ -411,7 +425,7 @@ server <- function(input, output, session) {
       num_cases <- input$num_cases * input$case_scaler
     } else {
       validate(
-        need(input$num_cases > 0, "There are no reported hospitalizations in this county. To run the model enter a non-zero number of hospitalizations.")
+        need(input$num_cases > 0, "To run the model enter a non-zero number of hospitalizations.")
       )
       # Infer total cases from demographics if hospitalizations are given
       num_cases <- input$num_cases / combined_counties_severity_rates$wtd_hosp_rate[1]
@@ -793,7 +807,7 @@ server <- function(input, output, session) {
     
     total_population <- naive_estimations$total_population
     validate(
-      need(input$num_cases != 0, "There are no reported cases in this county. To run the model enter a non-zero number of cases."),
+      need(input$num_cases != 0, "To run the model enter a non-zero number of cases."),
       need((severe_cases[n_days+1] + critical_cases[n_days + 1]) < 0.25*total_population, 
            "Current data are insufficient to reliably model infection rates this high. The model will be updated as more data become available. To proceed, reduce the initial number; or reduce the days to model; or increase the doubling time.")
     )
