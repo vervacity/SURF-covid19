@@ -209,7 +209,16 @@ ui <- shinyUI(
                           img(src = "matrixds_logo.png", height = 60, width = 'auto')
                         )
                       )
-             )
+             ),
+             
+             tags$head((tags$style(
+                ".navbar-default { 
+                  background: url(SURF.png); 
+                  background-repeat: no-repeat; 
+                  background-size: auto; 
+                  background-position: right center; 
+                  background-size: contain;}
+              ")))
   )
 )
 
