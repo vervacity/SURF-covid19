@@ -282,6 +282,7 @@ server <- function(input, output, session) {
     # updateNumericInput(session, "days_to_hospitalization", value = 9)
     updateSliderInput(session, "prop_acute_beds_for_covid", value = 50)
     updateSliderInput(session, "prop_icu_beds_for_covid", value = 50)
+    updateRadioButtons(session, "input_radio", 1)
   })
   
   
@@ -313,50 +314,35 @@ server <- function(input, output, session) {
     
     county_df <- get_county_df()
     
-    input_hospitalizations <- (input$input_radio == 2)
+    hospitalizations_input_instead_of_cases <- (input$input_radio == 2)
     doubling_time <- input$doubling_time
     
-    num_cases <- input$num_cases
-    
-    if(!input_hospitalizations) {
-      # Scale total cases if confirmed cases are given instead of hospitalizations
-      num_cases <- num_cases * input$case_scaler
-    } else {
-      validate(
-        need(num_cases > 0, "There are no reported hospitalizations in this county. To run the model enter a non-zero number of hospitalizations.")
-      )
-    }
-    
-    combined_counties_severity_rates <- county_df %>% group_by(age_decade) %>% 
+    combined_counties_severity_rates <- county_df %>% 
       summarise(
-        combined_population_in_age_group = sum(population_in_age_group),
+        total_population = sum(population_in_age_group),
         wtd_case_fatality_rate = weighted.mean(case_fatality_rate, population_in_age_group),
         wtd_critical_case_rate = weighted.mean(critical_case_rate, population_in_age_group),
-        wtd_severe_cases_rate = weighted.mean(severe_cases_rate, population_in_age_group)
-      ) %>%
-      mutate(
-        wtd_icu_prop_of_hosp = wtd_critical_case_rate / (wtd_critical_case_rate + wtd_severe_cases_rate),
-        wtd_hosp_rate = wtd_critical_case_rate + wtd_severe_cases_rate
+        wtd_severe_cases_rate = weighted.mean(severe_cases_rate, population_in_age_group),
+        wtd_hosp_rate = weighted.mean(severe_cases_rate + critical_case_rate, population_in_age_group)
       )
     
-    naive_estimations <- combined_counties_severity_rates %>%
-      mutate(relative_pop = combined_population_in_age_group/sum(combined_population_in_age_group))
-    
-    if(input_hospitalizations) {
-      # Infer true cases from hospitalizations and hospitalization rate if hospitalization count is given instead of confirmed case count
-      naive_estimations <- naive_estimations %>%
-        mutate(estimated_cases = num_cases*relative_pop/wtd_hosp_rate)
+    if(!hospitalizations_input_instead_of_cases) {
+      # Scale total cases if confirmed cases are given instead of hospitalizations
+      num_cases <- input$num_cases * input$case_scaler
     } else {
-      naive_estimations <- naive_estimations %>%
-        mutate(estimated_cases = num_cases*relative_pop)
+      validate(
+        need(input$num_cases > 0, "There are no reported hospitalizations in this county. To run the model enter a non-zero number of hospitalizations.")
+      )
+      # Infer total cases from demographics if hospitalizations are given
+      num_cases <- input$num_cases / combined_counties_severity_rates$wtd_hosp_rate[1]
     }
     
-    naive_estimations <- naive_estimations %>% 
-      mutate(estimated_fatal_cases = estimated_cases*wtd_case_fatality_rate) %>% 
-      mutate(estimated_critical_cases = estimated_cases*wtd_critical_case_rate) %>% 
-      mutate(estimated_severe_cases = estimated_cases*wtd_severe_cases_rate)
-    
-    naive_estimations
+    return(list(
+      total_population = combined_counties_severity_rates$total_population[1],
+      estimated_fatal_cases = num_cases * combined_counties_severity_rates$wtd_case_fatality_rate[1],
+      estimated_critical_cases = num_cases * combined_counties_severity_rates$wtd_critical_case_rate[1],
+      estimated_severe_cases = num_cases * combined_counties_severity_rates$wtd_severe_cases_rate[1]
+    ))
   })
   
   output$text1 <- renderText({
@@ -629,9 +615,9 @@ server <- function(input, output, session) {
     
     n_days <- input$num_days
     cases <- rep(input$num_cases * input$case_scaler, n_days+1)
-    fatal_cases <- rep(sum(naive_estimations['estimated_fatal_cases']), n_days+1)
-    critical_cases <- rep(sum(naive_estimations['estimated_critical_cases']), n_days+1)
-    severe_cases <- rep(sum(naive_estimations['estimated_severe_cases']), n_days+1)
+    fatal_cases <- rep(naive_estimations$estimated_fatal_cases, n_days+1)
+    critical_cases <- rep(naive_estimations$estimated_critical_cases, n_days+1)
+    severe_cases <- rep(naive_estimations$estimated_severe_cases, n_days+1)
     
     doubling_time <- input$doubling_time
     
@@ -675,7 +661,7 @@ server <- function(input, output, session) {
     #severe_cases = severe_cases - c(rep(0, input$los_severe), severe_cases)[1:length(severe_cases)]
     severe_cases = get_hospitalizations(severe_cases, input$los_severe, doubling_time)
     
-    total_population <- sum(naive_estimations$combined_population_in_age_group)
+    total_population <- naive_estimations$total_population
     validate(
       need(cases[1] != 0, "There are no reported cases in this county. To run the model enter a non-zero number of cases."),
       need((severe_cases[n_days+1] + critical_cases[n_days + 1]) < 0.25*total_population, 
@@ -696,6 +682,7 @@ server <- function(input, output, session) {
     req(input$doubling_time)
     
     case_numbers <- get_case_numbers()
+    print(case_numbers)
     fatal_cases <- case_numbers$fatal
     critical_cases <- case_numbers$critical
     severe_cases <- case_numbers$severe
