@@ -53,34 +53,44 @@ ui <- shinyUI(
                       sidebarPanel(
                         fluidRow(
                           column(12, 
+                                 p("Select a state and county or group of counties."),
                                  uiOutput("state_selector_1"),
                                  checkboxInput("state_all_selector", "All Counties", value = FALSE),
                                  uiOutput("county_selector_1"),
-                                 HTML("<b>Estimated Doubling Time for Cases Requiring Hospitalization (Days)</b>"),
-                                 p("To generate a forecast, enter a doubling time below."),
-                                 numericInput("doubling_time", NULL, value = 6, min = 1, max = 20),
                                  hr(),
-                                 #h4("User Inputs"),
+                                 p('If available, input the number of COVID-19 hospitalizations.'),
                                  radioButtons("input_radio", inline=TRUE, label = "Input Current Count of:", choices = list("Confirmed Cases" = 1, "Hospitalizations" = 2), selected = 1),
                                  uiOutput("num_cases"),
+                                 hr(),
+                                 p('Enter the doubling time, the number of days until the cumulative number of hospitalization/cases doubles.'),
+                                 strong("Estimated Doubling Time for Cases Requiring Hospitalization (Days)"),
+                                 br(),
+                                 br(),
+                                 numericInput("doubling_time", NULL, value = 6, min = 1, max = 20),
                                  uiOutput("case_scaler"),
+                                 hr(),
                                  sliderInput("num_days", "Number of Days to Model Ahead", 20, min = 1, max = 60),
-                                 sliderInput("los_severe", "Length of Stay (Days) for Acute", 12, min = 1, max = 90),
-                                 sliderInput("los_critical", "Length of Stay (Days) for ICU", 7, min = 1, max = 90),
-                                 # sliderInput("days_to_hospitalization", "Days to Hospitalization", 9, min = 0, max = 30),
-                                 sliderInput("prop_acute_beds_for_covid", "% of Acute Beds for COVID-19 Cases", 50, min = 0, max = 100),
-                                 sliderInput("prop_icu_beds_for_covid", "% of ICU Beds for COVID-19 Cases", 50, min = 0, max = 100),
-                                 actionButton("reset", "Reset to default user inputs"),
                                  hr(),
                                  h4("Simulation of Intervention"),
                                  p("To simulate the effects of social distancing, select the reduction in 'effective contacts' starting today:"),
+                                 br(),
                                  radioButtons("social_distancing_effect", label = NULL, 
                                               choices = list(
                                                 "No reduction" = 0,
                                                 "25%" = 25, 
                                                 "33%" = 33,
                                                 "50%" = 50)
-                                              , selected = 0)#,
+                                              , selected = 0),
+                                 hr(),
+                                 p("If local data are available, modify length of stay and beds availability below."),
+                                 #h4("User Inputs"),
+                                 sliderInput("los_severe", "Length of Stay (Days) for Acute", 12, min = 1, max = 90),
+                                 sliderInput("los_critical", "Length of Stay (Days) for ICU", 7, min = 1, max = 90),
+                                 # sliderInput("days_to_hospitalization", "Days to Hospitalization", 9, min = 0, max = 30),
+                                 sliderInput("prop_acute_beds_for_covid", "% of Acute Beds for COVID-19 Cases", 50, min = 0, max = 100),
+                                 sliderInput("prop_icu_beds_for_covid", "% of ICU Beds for COVID-19 Cases", 50, min = 0, max = 100),
+                                 hr(),
+                                 actionButton("reset", "Reset all to default user inputs")#,
                                  # fluidRow(
                                  #   column(6, tags$b("On Day")),
                                  #   column(6, tags$b("New DT"))
@@ -850,7 +860,7 @@ server <- function(input, output, session) {
       ylab("Number of cases") + xlab('Date')  +
       coord_cartesian(ylim=c(0, max(critical_cases + severe_cases))) +
       scale_x_date(name="Date", labels = date_format("%b %d",tz = "EST")) +
-      ggtitle("COVID-19 cases requiring hospitalization")
+      ggtitle("Daily number of people hospitalized for COVID-19 (not cumulative)")
 
     # if (is.finite(input$day_change_1) & input$day_change_1 > 0 & is.finite(input$double_change_1) & input$double_change_1 > 0) {
     #   dt_changes = get_dt_changes()
