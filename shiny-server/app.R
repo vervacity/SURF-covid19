@@ -1,26 +1,17 @@
-#
-# This is a Shiny web application on MatrixDS. 
-#
-# Find out more about building applications with Shiny here:
-#
-#    http://shiny.rstudio.com/
-#
+# shiny_project <- ""
+# prod <- paste0("/srv/shiny-server/", shiny_project)
+# dev <- paste0("~/shiny-server/", shiny_project)
+# if (!dir.exists(prod) & !dir.exists(dev)) {
+#   #message(" using getwd() for shiny_path")
+#   shiny_path <- getwd()
+# } else {
+#   .libPaths(c(.libPaths(), "/srv/.R/library"))
+#   options(java.parameters = "-Xmx8048m")
+#   #if (dir.exists(prod)) message("prod"); shiny_path <- prod
+#   #if (dir.exists(dev)) message("dev"); shiny_path <- dev
+# }
 
 library(shiny)
-
-shiny_project <- ""
-prod <- paste0("/srv/shiny-server/", shiny_project)
-dev <- paste0("~/shiny-server/", shiny_project)
-if (!dir.exists(prod) & !dir.exists(dev)) {
-  #message(" using getwd() for shiny_path")
-  shiny_path <- getwd()
-} else {
-  .libPaths(c(.libPaths(), "/srv/.R/library"))
-  options(java.parameters = "-Xmx8048m")
-  #if (dir.exists(prod)) message("prod"); shiny_path <- prod
-  #if (dir.exists(dev)) message("dev"); shiny_path <- dev
-}
-
 library(data.table)
 library(dplyr)
 library(lubridate)
@@ -63,25 +54,45 @@ ui <- shinyUI(
                                  radioButtons("input_radio", inline=TRUE, label = "Input:", choices = list("Confirmed Cases" = 1, "Hospitalizations" = 2), selected = 1),
                                  uiOutput("num_cases"),
                                  hr(),
-                                 p('Enter the doubling time, the number of days until the cumulative number of hospitalization/cases doubles.'),
+                                 HTML('Enter the <b>Doubling Time</b>, the number of days until the cumulative number of hospitalization/cases doubles.<br/><a href="https://www.nytimes.com/interactive/2020/03/21/upshot/coronavirus-deaths-by-country.html?action=click&module=Top%20Stories&pgtype=Homepage" target="_blank">(General range: 2-7 in the US)</a>'),
                                  #strong("Estimated Doubling Time for Cases Requiring Hospitalization (Days)"),
                                  # br(),
                                  # br(),
-                                 numericInput("doubling_time", NULL, value = 6, min = 1, max = 20),
+                                 numericInput("doubling_time", NULL, value = NA, min = 1, max = 20),
                                  uiOutput("case_scaler"),
                                  hr(),
                                  sliderInput("num_days", "Number of Days to Model Ahead", 20, min = 1, max = 60),
                                  hr(),
                                  h4("Simulation of Intervention"),
-                                 p("To simulate the effects of social distancing, select the reduction in 'effective contacts' starting today:"),
-                                 HTML('<div style = "display: block; width: 100%; height: 0.25em;"></div>'),
-                                 radioButtons("social_distancing_effect", label = NULL, 
-                                              choices = list(
-                                                "No reduction" = 0,
-                                                "25%" = 25, 
-                                                "33%" = 33,
-                                                "50%" = 50)
-                                              , selected = 0),
+                                 p("To simulate the effects of interventions (e.g. social distancing), select up to three new doubling times and start times (days from today):"),
+                                 # HTML('<div style = "display: block; width: 100%; height: 0.25em;"></div>'),
+                                 # radioButtons("social_distancing_effect", label = NULL, 
+                                 #              choices = list(
+                                 #                "No reduction" = 0,
+                                 #                "25%" = 25, 
+                                 #                "33%" = 33,
+                                 #                "50%" = 50)
+                                 #              , selected = 0),
+                                 fluidRow(
+                                   column(6, tags$b("On Day")),
+                                   column(6, tags$b("New DT"))
+                                 ),
+                                 fluidRow(
+                                   column(6,
+                                          numericInput("day_change_1", label=NULL, NA, min = 1),
+                                          numericInput("day_change_2", label=NULL, NA, min = 1),
+                                          numericInput("day_change_3", label=NULL, NA, min = 1)
+                                   ),
+                                   column(6,
+                                          numericInput("double_change_1", label=NULL, NA, min = 1),
+                                          numericInput("double_change_2", label=NULL, NA, min = 1),
+                                          numericInput("double_change_3", label=NULL, NA, min = 1)
+                                   ),
+                                   column(12, style="display:center-align", 
+                                          actionButton("load_dt_change_examples", "Fill Example Values"),
+                                          actionButton("clear", "Clear")
+                                   )
+                                 ),
                                  hr(),
                                  p("If local data are available, modify length of stay and beds availability below."),
                                  #h4("User Inputs"),
@@ -91,27 +102,7 @@ ui <- shinyUI(
                                  sliderInput("prop_acute_beds_for_covid", "% of Acute Beds for COVID-19 Cases", 50, min = 0, max = 100),
                                  sliderInput("prop_icu_beds_for_covid", "% of ICU Beds for COVID-19 Cases", 50, min = 0, max = 100),
                                  hr(),
-                                 actionButton("reset", "Reset all to default user inputs")#,
-                                 # fluidRow(
-                                 #   column(6, tags$b("On Day")),
-                                 #   column(6, tags$b("New DT"))
-                                 # ),
-                                 # fluidRow(
-                                 #   column(6,
-                                 #          numericInput("day_change_1", "", NA, min = 1) #,
-                                 #          #numericInput("day_change_2", "", NA, min = 1),
-                                 #          #numericInput("day_change_3", "", NA, min = 1)
-                                 #   ),
-                                 #   column(6,
-                                 #          numericInput("double_change_1", "", NA, min = 1) #,
-                                 #          #numericInput("double_change_2", "", NA, min = 1),
-                                 #          #numericInput("double_change_3", "", NA, min = 1)
-                                 #   ),
-                                 #   column(12, style="display:center-align",
-                                 #          #actionButton("submit", "Submit DT changes"),
-                                 #          actionButton("clear", "Clear DT changes")
-                                 #   )
-                                 #)
+                                 actionButton("reset", "Reset all to default user inputs")
                           )
                         ),
                         width = 3
@@ -334,13 +325,17 @@ server <- function(input, output, session) {
     req(input$state1)
     
     if (is.null(input$county1) & input$input_radio == 1) {
-      numericInput("num_cases", "Cumulative Confirmed Cases (as of today)", 1, min = 1)
+      list(
+        HTML('<b>Cumulative Confirmed Cases</b> (as of <a href="https://usafacts.org/visualizations/coronavirus-covid-19-spread-map/" target="_blank">today</a>)'),
+        numericInput("num_cases", label=NULL, 1, min = 1))
       
     } else if (input$input_radio == 1) {
       num_cases <- sum((get_county_df() %>% group_by(County) %>% summarize(num_cases = max(Cases)) %>% filter(is.finite(num_cases)))$num_cases)
       if (!is.finite(num_cases)) {num_cases <- 0}
       num_cases <- max(num_cases, 0)
-      numericInput("num_cases", "Cumulative Confirmed Cases (as of today)", num_cases, min = 1)
+      list(
+        HTML('<b>Cumulative Confirmed Cases</b> (as of <a href="https://usafacts.org/visualizations/coronavirus-covid-19-spread-map/" target="_blank">today</a>)'),
+        numericInput("num_cases",  label=NULL, num_cases, min = 1))
       
     } else if (is.null(input$county1) & input$input_radio == 2) {
       numericInput("num_cases", "Cumulative Hospitalizations (as of today)", 1, min = 1)
@@ -382,11 +377,20 @@ server <- function(input, output, session) {
   
   observeEvent(input$clear, {
     updateNumericInput(session, "day_change_1", value = NA)
-    #updateNumericInput(session, "day_change_2", value = NA)
-    #updateNumericInput(session, "day_change_3", value = NA)
+    updateNumericInput(session, "day_change_2", value = NA)
+    updateNumericInput(session, "day_change_3", value = NA)
     updateNumericInput(session, "double_change_1", value = NA)
-    #updateNumericInput(session, "double_change_2", value = NA)
-    #updateNumericInput(session, "double_change_3", value = NA)
+    updateNumericInput(session, "double_change_2", value = NA)
+    updateNumericInput(session, "double_change_3", value = NA)
+  })
+  
+  observeEvent(input$load_dt_change_examples, {
+    updateNumericInput(session, "day_change_1", value = 9)
+    updateNumericInput(session, "day_change_2", value = 10)
+    updateNumericInput(session, "day_change_3", value = 23)
+    updateNumericInput(session, "double_change_1", value = 9)
+    updateNumericInput(session, "double_change_2", value = 12)
+    updateNumericInput(session, "double_change_3", value = 14)
   })
   
   output$formula <- renderUI({
@@ -669,56 +673,64 @@ server <- function(input, output, session) {
       return(TRUE)
     }
     
-    if(input$social_distancing_effect == 0) {
-      double_change_1 = NA
-      day_change_1 = NA
-      double_change_2 = NA
-      day_change_2 = NA
-      double_change_3 = NA
-      day_change_3 = NA
-      
-    } else if (input$social_distancing_effect == 25) {
-      
-      # On Day 1, doubling time is 6
-      day_change_1 = 1
-      double_change_1 = 6
-      
-      # On Day 7, doubling time increases to 7
-      day_change_2 = 7
-      double_change_2 = 7
-
-      # On Day 21, doubling time increases to 8
-      day_change_3 = 21
-      double_change_3 = 8
-      
-    } else if (input$social_distancing_effect == 33) {
-      
-      # On Day 1, doubling time is 7
-      day_change_1 = 1
-      double_change_1 = 7
-      
-      # On Day 8, doubling time increases to 8
-      day_change_2 = 8
-      double_change_2 = 8
-      
-      # On Day 16, doubling time increases to 9
-      day_change_3 = 16
-      double_change_3 = 9
-      
-    } else if (input$social_distancing_effect == 50) {
-      
-      # On Day 1, doubling time is 9
-      day_change_1 = 1
-      double_change_1 = 9
-      
-      # On Day 10, doubling time increases to 12
-      day_change_2 = 10
-      double_change_2 = 12
-      
-      # On Day 23, doubling time increases to 14
-      day_change_3 = 23
-      double_change_3 = 14
-    }
+    day_change_1 = input$day_change_1
+    double_change_1 = input$double_change_1
+    day_change_2 = input$day_change_2
+    double_change_2 = input$double_change_2
+    day_change_3 = input$day_change_3
+    double_change_3 = input$double_change_3
+    
+    
+    # if(input$social_distancing_effect == 0) {
+    #   double_change_1 = NA
+    #   day_change_1 = NA
+    #   double_change_2 = NA
+    #   day_change_2 = NA
+    #   double_change_3 = NA
+    #   day_change_3 = NA
+    #   
+    # } else if (input$social_distancing_effect == 25) {
+    #   
+    #   # On Day 1, doubling time is 6
+    #   day_change_1 = 1
+    #   double_change_1 = 6
+    #   
+    #   # On Day 7, doubling time increases to 7
+    #   day_change_2 = 7
+    #   double_change_2 = 7
+    # 
+    #   # On Day 21, doubling time increases to 8
+    #   day_change_3 = 21
+    #   double_change_3 = 8
+    #   
+    # } else if (input$social_distancing_effect == 33) {
+    #   
+    #   # On Day 1, doubling time is 7
+    #   day_change_1 = 1
+    #   double_change_1 = 7
+    #   
+    #   # On Day 8, doubling time increases to 8
+    #   day_change_2 = 8
+    #   double_change_2 = 8
+    #   
+    #   # On Day 16, doubling time increases to 9
+    #   day_change_3 = 16
+    #   double_change_3 = 9
+    #   
+    # } else if (input$social_distancing_effect == 50) {
+    #   
+    #   # On Day 1, doubling time is 9
+    #   day_change_1 = 1
+    #   double_change_1 = 9
+    #   
+    #   # On Day 10, doubling time increases to 12
+    #   day_change_2 = 10
+    #   double_change_2 = 12
+    #   
+    #   # On Day 23, doubling time increases to 14
+    #   day_change_3 = 23
+    #   double_change_3 = 14
+    # }
     
     dt_changes <- c() 
     if (valid_pair(double_change_1, day_change_1)) {dt_changes = c(dt_changes, c(double_change_1, day_change_1))}
@@ -876,16 +888,16 @@ server <- function(input, output, session) {
       scale_x_date(name="Date", labels = date_format("%b %d",tz = "EST")) +
       ggtitle("Daily number of people hospitalized for COVID-19 (not cumulative)")
 
-    # if (is.finite(input$day_change_1) & input$day_change_1 > 0 & is.finite(input$double_change_1) & input$double_change_1 > 0) {
-    #   dt_changes = get_dt_changes()
-    #   days <- dt_changes[c(FALSE, TRUE)]
-    #   for (i in days) {
-    #     gp = gp +
-    #       geom_vline(xintercept = as.numeric(Sys.Date() + i), color = 'grey', linetype = 'dashed') +
-    #       annotate("text", x = Sys.Date() + i, y = max(critical_cases + severe_cases), color = 'grey', 
-    #                label = "Intervention")
-    #   }
-    # }
+    if (is.finite(input$day_change_1) & input$day_change_1 > 0 & is.finite(input$double_change_1) & input$double_change_1 > 0) {
+      dt_changes = get_dt_changes()
+      days <- dt_changes[c(FALSE, TRUE)]
+      for (i in days) {
+        gp = gp +
+          geom_vline(xintercept = as.numeric(Sys.Date() + i), color = 'grey', linetype = 'dashed') +
+          annotate("text", x = Sys.Date() + i, y = max(critical_cases + severe_cases), color = 'grey',
+                   label = "Intervention")
+      }
+    }
     
     if(is.finite(num_total_beds_available)) {
       gp = gp +
