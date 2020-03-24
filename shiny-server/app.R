@@ -44,6 +44,8 @@ df <- left_join(df, bed_dt, by = 'FIPS')
 df <- left_join(df, county_cases, by = 'FIPS')
 
 ui <- shinyUI(
+  list(
+  HTML('<div style = "display: block; width: 100%; height: 60px; background: url(banner.png); background-repeat: no-repeat; background-size: auto; background-position: right center; background-size: contain;"></div>'),
   
   navbarPage("Projecting Severe Cases of COVID-19",
              
@@ -209,18 +211,18 @@ ui <- shinyUI(
                           img(src = "matrixds_logo.png", height = 60, width = 'auto')
                         )
                       )
-             ),
+             )#,
              
-             tags$head((tags$style(
-                ".navbar-default { 
-                  background: url(SURF.png); 
-                  background-repeat: no-repeat; 
-                  background-size: auto; 
-                  background-position: right center; 
-                  background-size: contain;}
-              ")))
+             # tags$head((tags$style(
+             #    ".navbar-default { 
+             #      background: url(banner.png); 
+             #      background-repeat: no-repeat; 
+             #      background-size: auto; 
+             #      background-position: right center; 
+             #      background-size: contain;}
+             #  ")))
   )
-)
+))
 
 server <- function(input, output, session) {
   
