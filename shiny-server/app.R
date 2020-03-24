@@ -682,7 +682,6 @@ server <- function(input, output, session) {
     req(input$doubling_time)
     
     case_numbers <- get_case_numbers()
-    print(case_numbers)
     fatal_cases <- case_numbers$fatal
     critical_cases <- case_numbers$critical
     severe_cases <- case_numbers$severe
