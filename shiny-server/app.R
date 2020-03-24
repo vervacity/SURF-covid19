@@ -46,7 +46,7 @@ df <- left_join(df, county_cases, by = 'FIPS')
 ui <- shinyUI(
   list(
   HTML('<div style = "display: block; width: 100%; height: 60px; background: url(banner.png); background-repeat: no-repeat; background-size: auto; background-position: right center; background-size: contain;"></div>'),
-  
+
   navbarPage("Projecting Severe Cases of COVID-19",
              
              tabPanel("Calculator",
@@ -208,10 +208,10 @@ ui <- shinyUI(
                           br(),
                           img(src = "SURF.png", height = 60, width = 'auto'),
                           img(src = "CERC.png", height = 60, width = 'auto'),
-                          img(src = "matrixds_logo.png", height = 60, width = 'auto')
-                        )
+                          img(src = "matrixds_logo.png", height = 60, width = 'auto'),
+                        width = 10)
                       )
-             )#,
+             ),
              
              # tags$head((tags$style(
              #    ".navbar-default { 
@@ -221,6 +221,55 @@ ui <- shinyUI(
              #      background-position: right center; 
              #      background-size: contain;}
              #  ")))
+             
+             
+             tabPanel("About",
+
+                fluidPage(
+                  mainPanel(
+                    h2("About"),
+                    fluidRow(
+                      column(width = 2, 
+                             h4(a(href = "https://www.linkedin.com/in/johannes-ferstad-0a495833", "Johannes Ferstad", target = "_blank"), align = 'center'),
+                             HTML('<center><img src="johannes.png" style="width:220px;height:220px;"></center>')),
+                      column(width = 2, 
+                             h4(a(href = "https://profiles.stanford.edu/angela-gu", "Angela Gu", target = "_blank"), align = 'center'),
+                             HTML('<center><img src="angela.png" style="width:220px;height:220px;"></center>')),
+                      column(width = 2, 
+                             h4(a(href = "https://www.linkedin.com/in/raymond-ye-lee-97882224", "Raymond Lee", target = "_blank"), align = 'center'),
+                             HTML('<center><img src="raymond.png"style="width:220px;height:220px;"></center>')),
+                      column(width = 2, 
+                             h4(a(href = "https://profiles.stanford.edu/isha-thapa", "Isha Thapa", target = "_blank"), align = 'center'),
+                             HTML('<center><img src="isha.png" style="width:220px;height:220px;"></center>')),
+                      column(width = 2, 
+                             h4(a(href = "https://www.linkedin.com/in/alejandromartinezm", "Alejandro Martinez", target = "_blank"), align = 'center'),
+                             HTML('<center><img src="alejandro.jpg" style="width:220px;height:220px;"></center>')),
+                      column(width = 2, 
+                             h4(a(href = "https://profiles.stanford.edu/andrew-shin", "Andy Shin", target = "_blank"), align = 'center'),
+                             HTML('<center><img src="andy.jpg" style="width:220px;height:220px;"></center>')),
+                    ),
+                    br(),
+                    fluidRow(
+                      column(width = 2, 
+                             h4(a(href = "https://profiles.stanford.edu/joshua-salomon", "Joshua Salomon", target = "_blank"), align = 'center'),
+                             HTML('<center><img src="joshua.jpg" style="width:220px;height:220px;"></center>')),
+                      column(width = 2, 
+                             h4(a(href = "https://web.stanford.edu/~glynn/", "Peter Glynn", target = "_blank"), align = 'center'),
+                             HTML('<center><img src="peter.jpeg" style="width:220px;height:220px;"></center>')),
+                      column(width = 2, 
+                             h4(a(href = "https://www.linkedin.com/in/nigam/", "Nigam Shah", target = "_blank"), align = 'center'),
+                             HTML('<center><img src="nigam.jpeg" style="width:220px;height:220px;"></center>')),
+                      column(width = 2, 
+                             h4(a(href = "https://www.linkedin.com/in/kevin-schulman-6740a6a/", "Kevin Schulman", target = "_blank"), align = 'center'),
+                             HTML('<center><img src="kevin.png" style="width:220px;height:220px;"></center>')),
+                      column(width = 2, 
+                             h4(a(href = "https://www.linkedin.com/in/david-scheinker-8944265/", "David Scheinker", target = "_blank"), align = 'center'),
+                             HTML('<center><img src="david.jpg" style="width:220px;height:220px;"></center>'))
+                    ),
+                  width = 11
+                  )
+                )
+             )
   )
 ))
 
