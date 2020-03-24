@@ -64,15 +64,7 @@ ui <- shinyUI(
                                  sliderInput("num_days", "Number of Days to Model Ahead", 20, min = 1, max = 60),
                                  hr(),
                                  h4("Simulation of Intervention"),
-                                 p("To simulate the effects of interventions (e.g. social distancing), select up to three new doubling times and start times (days from today):"),
-                                 # HTML('<div style = "display: block; width: 100%; height: 0.25em;"></div>'),
-                                 # radioButtons("social_distancing_effect", label = NULL, 
-                                 #              choices = list(
-                                 #                "No reduction" = 0,
-                                 #                "25%" = 25, 
-                                 #                "33%" = 33,
-                                 #                "50%" = 50)
-                                 #              , selected = 0),
+                                 HTML("To simulate the effects of interventions (e.g. social distancing), select up to three new doubling times and start times (days from today)"),
                                  fluidRow(
                                    column(6, tags$b("On Day")),
                                    column(6, tags$b("New DT"))
@@ -90,7 +82,8 @@ ui <- shinyUI(
                                    ),
                                    column(12, style="display:center-align", 
                                           actionButton("load_dt_change_examples", "Fill Example Values"),
-                                          actionButton("clear", "Clear")
+                                          actionButton("clear", "Clear"), br(),
+                                          HTML('<a href="https://penn-chime.phl.io/" target="_blank" style="font-size:0.75em;">(Tool to estimate DT changes with changes in social interaction)</a>')
                                    )
                                  ),
                                  hr(),
@@ -119,7 +112,9 @@ ui <- shinyUI(
                         tableOutput("table1"),
                         hr(),
                         plotlyOutput("plot1"),
+                        br(),
                         hr(),
+                        br(),
                         plotlyOutput("plot2"),
                         width = 9
                       )
@@ -127,7 +122,8 @@ ui <- shinyUI(
              
              tabPanel("Nationwide Heatmap",
                       mainPanel(
-                        img(src = "usmap.png")
+                        width = 12,
+                        img(src = "usmap.png", style="display: block; margin-left: auto; margin-right: auto;")
                       )
              ),
              
@@ -178,7 +174,7 @@ ui <- shinyUI(
                             The model estimates the number of people requiring hospitalization using the initial numbers, the doubling time, and the population-specific rates and then compares these to the numbers of relevant beds derived from data from the American Hospital Association. The default assumptions are that: people requiring hospitalization are hospitalized on the day they test positive (the assumptions will change when non-symptomatic people start being tested); those with severe and critical symptoms spend, respectively, 12 days in acute care and 7 days in intensive care; and 50% of each type of bed is available for COVID-19+ patients. 
                             </blockquote>'),
                           
-                          h4(a(href='https://medrxiv.org', "Click here for the full metholodogy.",
+                          h4(a(href='#', "Click here for the full metholodogy [In Progress].",
                                target = '_blank')),
                           br(),
                           h4(a(href='https://docs.google.com/spreadsheets/d/1x9IjGEjLRO_8Tz7Y6Nf6rOeUsItZfMjoj83Qf5D9jo0/', "Click here for the county-age population numbers and severity rates we use as input.",
@@ -349,7 +345,10 @@ server <- function(input, output, session) {
   output$case_scaler <- renderUI({
     req(input$state1)
     if (input$input_radio == 1) {
-      sliderInput("case_scaler", "Number of True Cases per Confirmed Case", 5, min = 1, max = 20)
+      list(
+        HTML('<b>Symptomatic Cases per Confirmed Case</b> <a href="https://www.imperial.ac.uk/media/imperial-college/medicine/sph/ide/gida-fellowships/Imperial-College-COVID19-NPI-modelling-16-03-2020.pdf" target="_blank">(Symptomatic definition)</a>'),
+        sliderInput("case_scaler", label = NULL, 5, min = 1, max = 20) 
+      )
     } 
   })
     
@@ -359,7 +358,6 @@ server <- function(input, output, session) {
     num_cases <- max(num_cases, 0)
 
     if (input$input_radio == 1) {
-      updateNumericInput(session, "doubling_time", value = 6) 
       updateNumericInput(session, "num_cases", value = num_cases) 
       updateSliderInput(session, "case_scaler", value = 5)
     } else {
@@ -372,6 +370,12 @@ server <- function(input, output, session) {
     # updateNumericInput(session, "days_to_hospitalization", value = 9)
     updateSliderInput(session, "prop_acute_beds_for_covid", value = 50)
     updateSliderInput(session, "prop_icu_beds_for_covid", value = 50)
+    updateNumericInput(session, "day_change_1", value = NA)
+    updateNumericInput(session, "day_change_2", value = NA)
+    updateNumericInput(session, "day_change_3", value = NA)
+    updateNumericInput(session, "double_change_1", value = NA)
+    updateNumericInput(session, "double_change_2", value = NA)
+    updateNumericInput(session, "double_change_3", value = NA)
   })
   
   
@@ -948,11 +952,12 @@ server <- function(input, output, session) {
     
     p <- ggplot(data = map_df, aes(text = paste(county, round(hospitalization_rate, 2), sep = ": "))) + polygon_layer + ggplot2::coord_equal() +
       scale_fill_viridis(option='inferno', direction = -1) +
-      theme(legend.position = "right") + labs(title = "Expected Hospitalization Rate by County", fill = "Hospitalizations\nper 100\ncases") + theme_void() + 
+      theme(legend.position = "right") + labs(title = "Expected number of hospitalizations per 100 symptomatic cases\n(based on the age distribution of the county population)", fill = "Hospitalizations\nper 100\ncases") + theme_void() + 
       theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
             panel.background = element_blank(), axis.line = element_line(colour = "white"))
     
-    ggplotly(p, tooltip = 'text')
+    ggplotly(p, tooltip = 'text', height = 640) %>% 
+      config(displayModeBar = F)
   })
   
   output$plot_tuite_fisman <- renderPlot({
