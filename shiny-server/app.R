@@ -385,7 +385,7 @@ server <- function(input, output, session) {
   })
   
   observeEvent(input$load_dt_change_examples, {
-    updateNumericInput(session, "day_change_1", value = 9)
+    updateNumericInput(session, "day_change_1", value = 1)
     updateNumericInput(session, "day_change_2", value = 10)
     updateNumericInput(session, "day_change_3", value = 23)
     updateNumericInput(session, "double_change_1", value = 9)
