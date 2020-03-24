@@ -63,7 +63,7 @@ ui <- shinyUI(
                                  #h4("User Inputs"),
                                  radioButtons("input_radio", inline=TRUE, label = "Input Current Count of:", choices = list("Confirmed Cases" = 1, "Hospitalizations" = 2), selected = 1),
                                  uiOutput("num_cases"),
-                                 sliderInput("case_scaler", "Number of True Cases per Confirmed Case", 5, min = 1, max = 20),
+                                 uiOutput("case_scaler"),
                                  sliderInput("num_days", "Number of Days to Model Ahead", 20, min = 1, max = 60),
                                  sliderInput("los_severe", "Length of Stay (Days) for Acute", 12, min = 1, max = 90),
                                  sliderInput("los_critical", "Length of Stay (Days) for ICU", 7, min = 1, max = 90),
@@ -329,20 +329,32 @@ server <- function(input, output, session) {
     }
     
   })
+  
+  output$case_scaler <- renderUI({
+    req(input$state1)
+    if (input$input_radio == 1) {
+      sliderInput("case_scaler", "Number of True Cases per Confirmed Case", 5, min = 1, max = 20)
+    } 
+  })
     
   observeEvent(input$reset, {
     num_cases <- sum((get_county_df() %>% group_by(County) %>% summarize(num_cases = max(Cases)) %>% filter(is.finite(num_cases)))$num_cases)
-    if (!is.finite(num_cases)) {num_cases <- 1}
-    num_cases <- max(num_cases, 1)
-    updateNumericInput(session, "num_cases", value = num_cases)
+    if (!is.finite(num_cases)) {num_cases <- 0}
+    num_cases <- max(num_cases, 0)
+
+    if (input$input_radio == 1) {
+      updateNumericInput(session, "num_cases", value = num_cases) 
+      updateSliderInput(session, "case_scaler", value = 5)
+    } else {
+      updateNumericInput(session, "num_cases", value = 0)
+    }
+    updateRadioButtons(session, "input_radio", selected = 1)
     updateSliderInput(session, "num_days", value = 20)
-    updateNumericInput(session, "doubling_time", value = 7)
     updateNumericInput(session, "los_severe", value = 12)
     updateNumericInput(session, "los_critical", value = 7)
     # updateNumericInput(session, "days_to_hospitalization", value = 9)
     updateSliderInput(session, "prop_acute_beds_for_covid", value = 50)
     updateSliderInput(session, "prop_icu_beds_for_covid", value = 50)
-    updateRadioButtons(session, "input_radio", 1)
   })
   
   
@@ -674,7 +686,7 @@ server <- function(input, output, session) {
     naive_estimations <- get_naive_estimations()
     
     n_days <- input$num_days
-    cases <- rep(input$num_cases * input$case_scaler, n_days+1)
+    # cases <- rep(input$num_cases * input$case_scaler, n_days+1)
     fatal_cases <- rep(naive_estimations$estimated_fatal_cases, n_days+1)
     critical_cases <- rep(naive_estimations$estimated_critical_cases, n_days+1)
     severe_cases <- rep(naive_estimations$estimated_severe_cases, n_days+1)
@@ -709,7 +721,7 @@ server <- function(input, output, session) {
           doubling_time <- dt_changes[2*min(which(days == i-1))-1]
         }
       }
-      cases[i+1] = cases[i]*2^(1/doubling_time)
+      # cases[i+1] = cases[i]*2^(1/doubling_time)
       fatal_cases[i+1] = fatal_cases[i]*2^(1/doubling_time)
       critical_cases[i+1] = critical_cases[i]*2^(1/doubling_time)
       severe_cases[i+1] = severe_cases[i]*2^(1/doubling_time)
@@ -723,7 +735,7 @@ server <- function(input, output, session) {
     
     total_population <- naive_estimations$total_population
     validate(
-      need(cases[1] != 0, "There are no reported cases in this county. To run the model enter a non-zero number of cases."),
+      need(input$num_cases != 0, "There are no reported cases in this county. To run the model enter a non-zero number of cases."),
       need((severe_cases[n_days+1] + critical_cases[n_days + 1]) < 0.25*total_population, 
            "Current data are insufficient to reliably model infection rates this high. The model will be updated as more data become available. To proceed, reduce the initial number; or reduce the days to model; or increase the doubling time.")
     )
