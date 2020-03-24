@@ -229,6 +229,7 @@ ui <- shinyUI(
                           p("Johannes Opsahl Ferstad, Angela Gu, Raymond Ye Lee, Isha Thapa, Alejandro Martinez, Andy Shin, Joshua Salomon, Peter Glynn, Nigam Shah, Arnold Milstein, Kevin Schulman, David Scheinker"),
                           strong("For their help, we thank:"),
                           p("Amber Levine, Grace Lee, Teng Zhang, Jacqueline Jil Vallon, Francesca Briganti"),
+                          p("We thank Amber Levine for her help testing and improving the model."),
                           br(),
                           img(src = "SURF.png", height = 60, width = 'auto'),
                           img(src = "CERC.png", height = 60, width = 'auto'),
