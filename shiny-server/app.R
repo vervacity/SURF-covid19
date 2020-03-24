@@ -246,7 +246,7 @@ ui <- shinyUI(
                              HTML('<center><img src="alejandro.jpg" style="width:150px;height:150px;"></center>')),
                       column(width = 2, 
                              h4(a(href = "https://profiles.stanford.edu/andrew-shin", "Andy Shin", target = "_blank"), align = 'center'),
-                             HTML('<center><img src="andy.jpg" style="width:150px;height:150px;"></center>')),
+                             HTML('<center><img src="andy.jpg" style="width:150px;height:150px;"></center>'))
                     ),
                     br(),
                     fluidRow(
@@ -257,13 +257,13 @@ ui <- shinyUI(
                              h4(a(href = "https://web.stanford.edu/~glynn/", "Peter Glynn", target = "_blank"), align = 'center'),
                              HTML('<center><img src="peter.jpeg" style="width:150px;height:150px;"></center>')),
                       column(width = 2, 
-                             h4(a(href = "https://www.linkedin.com/in/nigam/", "Nigam Shah", target = "_blank"), align = 'center'),
+                             h4(a(href = "https://shahlab.stanford.edu/", "Nigam Shah", target = "_blank"), align = 'center'),
                              HTML('<center><img src="nigam.jpeg" style="width:150px;height:150px;"></center>')),
                       column(width = 2, 
-                             h4(a(href = "https://www.linkedin.com/in/kevin-schulman-6740a6a/", "Kevin Schulman", target = "_blank"), align = 'center'),
+                             h4(a(href = "https://profiles.stanford.edu/kevin-schulman", "Kevin Schulman", target = "_blank"), align = 'center'),
                              HTML('<center><img src="kevin.png" style="width:150px;height:150px;"></center>')),
                       column(width = 2, 
-                             h4(a(href = "https://www.linkedin.com/in/david-scheinker-8944265/", "David Scheinker", target = "_blank"), align = 'center'),
+                             h4(a(href = "https://surf.stanford.edu/people/", "David Scheinker", target = "_blank"), align = 'center'),
                              HTML('<center><img src="david.jpg" style="width:150px;height:150px;"></center>'))
                     ),
                   width = 11
