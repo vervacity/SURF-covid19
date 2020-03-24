@@ -45,7 +45,7 @@ df <- left_join(df, county_cases, by = 'FIPS')
 
 ui <- shinyUI(
   list(
-  HTML('<div style = "display: block; width: 100%; height: 60px; background: url(banner.png); background-repeat: no-repeat; background-size: auto; background-position: right center; background-size: contain;"></div>'),
+  HTML('<div style = "display: block; width: 100%; height: 60px; background: url(banner.png); background-repeat: no-repeat; background-size: auto; background-position: left center; background-size: contain; margin-left: 15px;"></div>'),
 
   navbarPage("Projecting Severe Cases of COVID-19",
              
@@ -58,7 +58,7 @@ ui <- shinyUI(
                                  uiOutput("county_selector_1"),
                                  HTML("<b>Estimated Doubling Time for Cases Requiring Hospitalization (Days)</b>"),
                                  p("To generate a forecast, enter a doubling time below."),
-                                 numericInput("doubling_time", NULL, value = NA, min = 1, max = 20),
+                                 numericInput("doubling_time", NULL, value = 6, min = 1, max = 20),
                                  hr(),
                                  #h4("User Inputs"),
                                  radioButtons("input_radio", inline=TRUE, label = "Input Current Count of:", choices = list("Confirmed Cases" = 1, "Hospitalizations" = 2), selected = 1),
@@ -101,7 +101,7 @@ ui <- shinyUI(
                       mainPanel(
                         
                         tags$head(tags$style(".shiny-output-error{color: green;}")),
-                        h4("This is a planning tool, not a prediction. To generate a forecast, enter the doubling time for your region (and modify the total confirmed number of COVID-19 cases if necessary). See the Documentation tab for methodology."),
+                        h4("This tool allows healthcare providers and policy makers to estimate ICU and Acute Care bed demand for COVID-19 patients. See the Documentation tab for methodology."),
                         hr(),
                         htmlOutput("text1"),
                         tags$head(tags$style("ul, li {margin-left: 0.5em; padding-left: 0;}")),
@@ -212,16 +212,6 @@ ui <- shinyUI(
                         width = 10)
                       )
              ),
-             
-             # tags$head((tags$style(
-             #    ".navbar-default { 
-             #      background: url(banner.png); 
-             #      background-repeat: no-repeat; 
-             #      background-size: auto; 
-             #      background-position: right center; 
-             #      background-size: contain;}
-             #  ")))
-             
              
              tabPanel("About",
 
@@ -343,6 +333,7 @@ server <- function(input, output, session) {
     num_cases <- max(num_cases, 0)
 
     if (input$input_radio == 1) {
+      updateNumericInput(session, "doubling_time", value = 6) 
       updateNumericInput(session, "num_cases", value = num_cases) 
       updateSliderInput(session, "case_scaler", value = 5)
     } else {
