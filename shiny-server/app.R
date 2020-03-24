@@ -63,7 +63,7 @@ ui <- shinyUI(
                                  #h4("User Inputs"),
                                  radioButtons("input_radio", inline=TRUE, label = "Input Current Count of:", choices = list("Confirmed Cases" = 1, "Hospitalizations" = 2), selected = 1),
                                  uiOutput("num_cases"),
-                                 sliderInput("case_scaler", "Number of True Cases per Confirmed Case", 10, min = 5, max = 20),
+                                 sliderInput("case_scaler", "Number of True Cases per Confirmed Case", 5, min = 1, max = 20),
                                  sliderInput("num_days", "Number of Days to Model Ahead", 20, min = 1, max = 60),
                                  sliderInput("los_severe", "Length of Stay (Days) for Acute", 12, min = 1, max = 90),
                                  sliderInput("los_critical", "Length of Stay (Days) for ICU", 7, min = 1, max = 90),
