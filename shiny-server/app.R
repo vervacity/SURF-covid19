@@ -103,6 +103,9 @@ ui <- shinyUI(
                       mainPanel(
                         
                         tags$head(tags$style(".shiny-output-error{color: green;}")),
+                        div('These models are planning tools and not predictions. They are based on data from Stanford and several public sources. The tools include assumptions that are changing as more information becomes available and will continue to evolve.',
+                            style = 'margin-bottom: 15px'),
+                        hr(),
                         h4("This tool allows healthcare providers and policy makers to estimate ICU and Acute Care bed demand for COVID-19 patients. See the Documentation tab for methodology."),
                         hr(),
                         htmlOutput("text1"),
@@ -122,9 +125,14 @@ ui <- shinyUI(
              
              tabPanel("Nationwide Heatmap",
                       mainPanel(
-                        width = 12,
-                        img(src = "usmap.png", style="display: block; margin-left: auto; margin-right: auto;")
+                        #width = 12,
+                        #img(src = "usmap.png", style="display: block; margin-left: auto; margin-right: auto;")
+                        div('These models are planning tools and not predictions. They are based on data from Stanford and several public sources. The tools include assumptions that are changing as more information becomes available and will continue to evolve.',
+                            style = 'margin-bottom: 15px'),
+                        hr(),
+                        img(src="usmap.svg", style="height:600px; width:1000px; display: block; margin-left: auto; margin-right: auto;")
                       )
+                      
              ),
              
              # tabPanel("Tuite and Fisman (2020)",
@@ -284,9 +292,7 @@ ui <- shinyUI(
                   )
                 )
              )
-  ),
-  div('These models are planning tools and not predictions. They are based on data from Stanford and several public sources. The tools include assumptions that are changing as more information becomes available and will continue to evolve.',
-      style = 'margin-left: 15px; margin-top: 15px; margin-bottom: 15px')
+  )
 ))
 
 server <- function(input, output, session) {
