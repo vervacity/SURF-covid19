@@ -284,7 +284,9 @@ ui <- shinyUI(
                   )
                 )
              )
-  )
+  ),
+  div('These models are planning tools and not predictions. They are based on data from Stanford and several public sources. The tools include assumptions that are changing as more information becomes available and will continue to evolve.',
+      style = 'margin-left: 15px; margin-top: 15px; margin-bottom: 15px')
 ))
 
 server <- function(input, output, session) {
