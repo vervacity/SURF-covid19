@@ -91,6 +91,7 @@ county_case_severity_rates[County == "Santa Clara County"] %>% kable(digits=3) %
 ```{r}
 fwrite(county_case_severity_rates, 'data/county_case_severity_rates_v6.csv')
 fwrite(merged_pop_fat_rate, 'data/county_age_severity_rates_v6.csv')
+fwrite(merged_pop_fat_rate, '../shiny-server/county_age_severity_rates_v6.csv')
 
 county_case_severity_rates[State == "California"][order(hospitalizations_per_case, decreasing = TRUE)] %>%
    kable(digits=3) %>% kable_styling()
