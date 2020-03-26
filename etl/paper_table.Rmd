@@ -1,0 +1,148 @@
+
+```{r}
+library(data.table)
+library(dplyr)
+```
+
+Load data (same as in app)
+```{r}
+df <- read.csv('~/github/SURF-covid19/shiny-server/county_age_severity_rates_v6.csv', stringsAsFactors = FALSE)
+df$County <- gsub('city', 'City', df$County)
+acute_beds_dt = fread('~/github/SURF-covid19/shiny-server/acute_byFIPS.csv')
+icu_beds_dt = fread('~/github/SURF-covid19/shiny-server/icu_byFIPS.csv')
+bed_dt = merge(acute_beds_dt, icu_beds_dt, by = "FIPS")
+county_cases <- read.csv("https://static.usafacts.org/public/data/covid-19/covid_confirmed_usafacts.csv")
+county_cases <- county_cases[, c(1,2, ncol(county_cases))]
+county_cases <- county_cases %>% rename_at(vars(colnames(county_cases)), ~ c("FIPS", 'County', 'Cases')) %>% 
+  filter(FIPS != 0) %>% mutate(FIPS = as.numeric(FIPS)) %>% select(FIPS, Cases)
+df <- left_join(df, bed_dt, by = 'FIPS')
+df <- left_join(df, county_cases, by = 'FIPS')
+```
+
+Collapse data to county level. Filter to counties with reported cases and bed data.
+```{r}
+county_df = df %>%
+  filter(Cases > 0, num_acute_beds > 0, num_icu_beds > 0) %>%
+  group_by(State, County, FIPS) %>%
+  summarize(
+    population = sum(population_in_age_group),
+    acute_hospitalizations_per_case = weighted.mean(severe_cases_rate, population_in_age_group),
+    icu_hospitalizations_per_case = weighted.mean(critical_case_rate, population_in_age_group),
+    acute_beds = max(num_acute_beds),
+    icu_beds = max(num_icu_beds),
+    current_reported_cases = max(Cases)
+  )
+county_df %>% arrange(desc(current_reported_cases))
+```
+
+
+### Set inputs
+
+Assumptions (input parameters):
+* Doubling time = 7 days
+* Starting confirmed cases: current confirmed cases as reported by USFacts (March 25)
+* Symptomatic cases per confirmed case: 5
+* 50% of Acute and ICU Beds available for COVID patients
+* Acute LOS: 12; ICU LOS: 7
+
+```{r}
+input = list()
+
+input$doubling_time = 7
+input$case_scaler = 5
+input$prop_acute_beds_for_covid = 50
+input$prop_icu_beds_for_covid = 50
+input$los_severe = 12
+input$los_critical = 7
+```
+
+
+### Add projected cumulative cases and hospitalizations for the next 100 days
+
+```{r}
+county_dt = as.data.table(county_df)[,i:=1]
+days_dt = data.table(day = seq(0,100), i = 1)
+count_days_dt = merge(county_dt, days_dt, on='i', allow.cartesian = T)[,i:=NULL]
+count_days_dt[,cum_cases:=current_reported_cases*2^(day/input$doubling_time)]
+count_days_dt[,`:=`(
+  cum_acute_hosp = cum_cases * acute_hospitalizations_per_case,
+  cum_icu_hosp = cum_cases * icu_hospitalizations_per_case,
+  acute_beds_available = input$prop_acute_beds_for_covid/100 * acute_beds,
+  icu_beds_available = input$prop_icu_beds_for_covid/100 * icu_beds
+)]
+count_days_dt[County=="Santa Clara County"]
+```
+
+### Add projected cumulative cases and hospitalizations for the next 100 days
+
+Load function (from app)
+```{r}
+get_hospitalizations = function(cumulative_cases, los, doubling_time) {
+      
+      days_to_hospitalization = 0
+      
+      # project back los + days to hospitalization days
+      back_vec = c(rep(NA, los + days_to_hospitalization), cumulative_cases)
+      for (i in (los + days_to_hospitalization):1) {
+          back_vec[i] = back_vec[i + 1]/2^(1/doubling_time)
+      }
+      
+      # get indices of original vectors
+      original_start = los + days_to_hospitalization + 1
+      original_end = los + days_to_hospitalization + length(cumulative_cases)
+      stopifnot(all.equal(back_vec[original_start:original_end], cumulative_cases))
+      stopifnot(length(back_vec) == original_end)
+      
+      # get indices of vectors shifted by days to hospitalization
+      shifted_start = original_start - days_to_hospitalization
+      shifted_end = original_end - days_to_hospitalization
+      
+      # subtract off for length of stay
+      return_vec = back_vec[shifted_start:shifted_end] - back_vec[(shifted_start - los):(shifted_end - los)]
+      
+      return(return_vec)
+  }
+```
+
+
+```{r}
+count_days_dt[,`:=`(
+  acute_hosp = get_hospitalizations(cum_acute_hosp, input$los_severe, input$doubling_time),
+  icu_hosp = get_hospitalizations(cum_icu_hosp, input$los_critical, input$doubling_time)
+), by = 'FIPS']
+count_days_dt[County=="Santa Clara County"]
+```
+
+# Add column with % utilization in 30 days without changes to doubling time
+```{r}
+count_days_dt[,`:=`(
+  first_day_over_acute_capacity = min(ifelse(acute_hosp>acute_beds_available, day, NA), na.rm = TRUE),
+  first_day_over_icu_capacity = min(ifelse(icu_hosp>icu_beds_available, day, NA), na.rm = TRUE)
+), by = 'FIPS']
+
+count_days_dt[,first_day_over_capacity := pmin(first_day_over_acute_capacity, first_day_over_icu_capacity, na.rm = TRUE)]
+
+count_days_dt[County=="New York County"]
+```
+
+# Collapse to county-level table and add utilization on day 30
+```{r}
+county_agg = count_days_dt[,.(
+  population = max(population),
+  current_reported_cases = max(current_reported_cases),
+  acute_beds = max(acute_beds),
+  icu_beds = max(icu_beds),
+  first_day_over_acute_capacity = max(first_day_over_acute_capacity),
+  first_day_over_icu_capacity = max(first_day_over_icu_capacity),
+  acute_bed_utilization_on_day_30 = max(ifelse(day == 30, acute_hosp/acute_beds, 0)),
+  icu_bed_utilization_on_day_30 = max(ifelse(day == 30, icu_hosp/icu_beds, 0))
+), by = c('State','County')]
+
+county_agg = county_agg[order(icu_bed_utilization_on_day_30, decreasing = T)]
+county_agg
+```
+
+```{r}
+fwrite(county_agg, '~/github/SURF-covid19/etl/data/county_agg.csv')
+```
+
