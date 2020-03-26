@@ -334,15 +334,19 @@ server <- function(input, output, session) {
   output$num_cases <- renderUI({
     req(input$state1)
     
-    if (is.null(input$county1) & input$input_radio == 1) {
-      list(
-        HTML('<b>Cumulative Confirmed Cases</b> (as of <a href="https://usafacts.org/visualizations/coronavirus-covid-19-spread-map/" target="_blank">today</a>)'),
-        numericInput("num_cases", label=NULL, 1, min = 1))
-      
-    } else if (input$input_radio == 1) {
-      num_cases <- sum((get_county_df() %>% group_by(County) %>% summarize(num_cases = max(Cases)) %>% filter(is.finite(num_cases)))$num_cases)
-      if (!is.finite(num_cases)) {num_cases <- 0}
-      num_cases <- max(num_cases, 0)
+    # TODO: Fix loading of cases from USFacts
+    # 
+    # if (is.null(input$county1) & input$input_radio == 1) {
+    #   list(
+    #     HTML('<b>Cumulative Confirmed Cases</b> (as of <a href="https://usafacts.org/visualizations/coronavirus-covid-19-spread-map/" target="_blank">today</a>)'),
+    #     numericInput("num_cases", label=NULL, 1, min = 1))
+    #   
+    #} else
+    if (input$input_radio == 1) {
+      # num_cases <- sum((get_county_df() %>% group_by(County) %>% summarize(num_cases = max(Cases)) %>% filter(is.finite(num_cases)))$num_cases)
+      # if (!is.finite(num_cases)) {num_cases <- 0}
+      # num_cases <- max(num_cases, 0)
+      num_cases <- 0
       list(
         HTML('<b>Cumulative Confirmed Cases</b> (as of <a href="https://usafacts.org/visualizations/coronavirus-covid-19-spread-map/" target="_blank">today</a>)'),
         numericInput("num_cases",  label=NULL, num_cases, min = 1))
