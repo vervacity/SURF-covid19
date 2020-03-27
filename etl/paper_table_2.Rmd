@@ -1,0 +1,60 @@
+
+```{r}
+library(data.table)
+library(dplyr)
+```
+
+Load data (same as in app)
+```{r}
+df <- read.csv('~/github/SURF-covid19/shiny-server/county_age_severity_rates_v6.csv', stringsAsFactors = FALSE)
+df$County <- gsub('city', 'City', df$County)
+acute_beds_dt = fread('~/github/SURF-covid19/shiny-server/acute_byFIPS.csv')
+icu_beds_dt = fread('~/github/SURF-covid19/shiny-server/icu_byFIPS.csv')
+bed_dt = merge(acute_beds_dt, icu_beds_dt, by = "FIPS")
+county_cases <- read.csv("https://static.usafacts.org/public/data/covid-19/covid_confirmed_usafacts.csv")
+county_cases
+
+county_cases <- county_cases[, c(1,2, ncol(county_cases) - 1)]
+county_cases <- county_cases %>% rename_at(vars(colnames(county_cases)), ~ c("FIPS", 'County', 'Cases')) %>% 
+  filter(FIPS != 0) %>% mutate(FIPS = as.numeric(FIPS)) %>% select(FIPS, Cases)
+df <- left_join(df, bed_dt, by = 'FIPS')
+df <- left_join(df, county_cases, by = 'FIPS')
+```
+
+Collapse data to county level. Filter to counties with reported cases and bed data.
+```{r}
+county_df = df %>%
+  filter(Cases > 0, num_acute_beds > 0, num_icu_beds > 0) %>%
+  group_by(State, County, FIPS) %>%
+  summarize(
+    population = sum(population_in_age_group),
+    acute_hospitalizations_per_case = weighted.mean(severe_cases_rate, population_in_age_group),
+    icu_hospitalizations_per_case = weighted.mean(critical_case_rate, population_in_age_group),
+    acute_beds = max(num_acute_beds),
+    icu_beds = max(num_icu_beds),
+    current_reported_cases = max(Cases)
+  )
+county_df %>% arrange(desc(current_reported_cases))
+```
+
+Filter to counties with non-zero cases
+
+Get acute and ICU utilization given 5% of population symptomatic 
+```{r}
+county_df = county_df %>%
+  mutate(assumed_symptomatic_cases = population * 0.01) %>%
+  mutate(
+    acute_hosp = assumed_symptomatic_cases * acute_hospitalizations_per_case,
+    icu_hosp = assumed_symptomatic_cases * icu_hospitalizations_per_case
+  ) %>%
+  mutate(
+    acute_util = acute_hosp / acute_beds,
+    icu_util = icu_hosp / icu_beds
+  )
+```
+
+```{r}
+fwrite(county_df %>% select(State, County, population, current_reported_cases, acute_beds, icu_beds, acute_util, icu_util), 
+       '~/github/SURF-covid19/etl/data/county_table_2.csv')
+```
+

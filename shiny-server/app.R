@@ -118,7 +118,7 @@ ui <- shinyUI(
                         br(),
                         tableOutput("table1"),
                         hr(),
-                        plotlyOutput("plot1"),
+                        plotlyOutput("plot1", height = "640px"),
                         br(),
                         hr(),
                         br(),
@@ -948,7 +948,7 @@ server <- function(input, output, session) {
         annotate("text", x = Sys.Date() + 0.75*n_days, y = num_icu_beds_available*1.02, label = "ICU Beds for COVID Patients", vjust=1, hjust=0, size = 3, color = 'gray35')
     }
     
-    ggplotly(gp, tooltip = 'text') %>% 
+    ggplotly(gp, tooltip = 'text', height = 640) %>% 
       layout(
         legend = list(x = 0.02, y = 0.9, bgcolor = 'rgba(0,0,0,0)'),
         xaxis=list(fixedrange=TRUE),
