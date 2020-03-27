@@ -124,21 +124,39 @@ ui <- shinyUI(
                         tags$head(tags$style("ul, li {margin-left: 0.5em; padding-left: 0;}")),
                         tags$head(tags$style("li {margin-top: 0.5em;}")),
                         br(),
-                        tableOutput("table1"),
-                        hr(),
-                        plotlyOutput("plot1", height = "640px"),
+                        #tableOutput("table1"),
+                        #hr(),
+                        tabsetPanel(type = "tabs",
+                                    tabPanel("Graphical Representation", list(hr(), plotlyOutput("plot1", height ="640px"))),
+                                    tabPanel("Tabular Representation", list(
+                                      tableOutput("table1"), tableOutput("table2"), downloadButton("downloadData", "Download Table")
+                                      ))
+                        ),
                         br(),
                         hr(),
                         br(),
-                        plotlyOutput("plot2"),
+                        #plotlyOutput("plot2"),
                         width = 9
                       )
              ),
              
-             tabPanel("Nationwide Heatmap",
+             tabPanel("Heatmaps",
+                      sidebarPanel(
+                        
+                        fluidRow(
+                          column(12,
+                                 selectInput(inputId = "state1", #name of input
+                                             label = "State:", #label displayed in ui
+                                             choices = as.character(sort(unique(df$State))),
+                                             # calls unique values from the State column in the previously created table
+                                             selected = "California") #default choice (not required)
+                          )),
+                        width = 2),
                       mainPanel(
                         div('These models are planning tools and not predictions. They are based on data from Stanford and several public sources. The tools include assumptions that are changing as more information becomes available and will continue to evolve.',
                             style = 'margin-bottom: 15px'),
+                        hr(),
+                        plotlyOutput("plot2", height = "640px"),
                         hr(),
                         img(src="usmap.svg", style="height:600px; width:1000px; display: block; margin-left: auto; margin-right: auto;")
                       )
@@ -656,58 +674,6 @@ server <- function(input, output, session) {
     day_change_3 = input$day_change_3
     double_change_3 = input$double_change_3
     
-    
-    # if(input$social_distancing_effect == 0) {
-    #   double_change_1 = NA
-    #   day_change_1 = NA
-    #   double_change_2 = NA
-    #   day_change_2 = NA
-    #   double_change_3 = NA
-    #   day_change_3 = NA
-    #   
-    # } else if (input$social_distancing_effect == 25) {
-    #   
-    #   # On Day 1, doubling time is 6
-    #   day_change_1 = 1
-    #   double_change_1 = 6
-    #   
-    #   # On Day 7, doubling time increases to 7
-    #   day_change_2 = 7
-    #   double_change_2 = 7
-    # 
-    #   # On Day 21, doubling time increases to 8
-    #   day_change_3 = 21
-    #   double_change_3 = 8
-    #   
-    # } else if (input$social_distancing_effect == 33) {
-    #   
-    #   # On Day 1, doubling time is 7
-    #   day_change_1 = 1
-    #   double_change_1 = 7
-    #   
-    #   # On Day 8, doubling time increases to 8
-    #   day_change_2 = 8
-    #   double_change_2 = 8
-    #   
-    #   # On Day 16, doubling time increases to 9
-    #   day_change_3 = 16
-    #   double_change_3 = 9
-    #   
-    # } else if (input$social_distancing_effect == 50) {
-    #   
-    #   # On Day 1, doubling time is 9
-    #   day_change_1 = 1
-    #   double_change_1 = 9
-    #   
-    #   # On Day 10, doubling time increases to 12
-    #   day_change_2 = 10
-    #   double_change_2 = 12
-    #   
-    #   # On Day 23, doubling time increases to 14
-    #   day_change_3 = 23
-    #   double_change_3 = 14
-    # }
-    
     dt_changes <- c() 
     if (valid_pair(double_change_1, day_change_1)) {dt_changes = c(dt_changes, c(double_change_1, day_change_1))}
     if (valid_pair(double_change_2, day_change_2)) {dt_changes = c(dt_changes, c(double_change_2, day_change_2))}
@@ -809,65 +775,91 @@ server <- function(input, output, session) {
     return(return_cases)
   })
   
-  output$plot1 <- renderPlotly({
+  # Function to get data table with time series of cases (used for both graphical and tabular representation)
+  get_time_series_dt <- reactive({
     req(input$county1)
     req(input$doubling_time)
     
     case_numbers <- get_case_numbers()
-    fatal_cases <- case_numbers$fatal
-    critical_cases <- case_numbers$critical
-    severe_cases <- case_numbers$severe
-
+    
+    n_days <- input$num_days
+    day_list <- c(0:n_days)
+    
+    chart_data = data.table(
+      Date = Sys.Date() + day_list,
+      `Estimated<br />Acute Hospitalizations<br />(without intervention)` = round(case_numbers$severe_without_intervention),
+      `Estimated<br />ICU Hospitalizations<br />(without intervention)` = round(case_numbers$critical_without_intervention)
+    )
+    
+    if (is.finite(input$day_change_1) & input$day_change_1 > 0 & is.finite(input$double_change_1) & input$double_change_1 > 0) {
+      chart_data[,`:=`(
+        `Estimated<br />Acute Hospitalizations<br />(with intervention)` = round(case_numbers$severe),
+        `Estimated<br />ICU Hospitalizations<br />(with intervention)` = round(case_numbers$critical)
+      )]
+    }
+    
+    chart_data
+  })
+  
+  output$table2 <- renderTable({ get_time_series_dt()[,Date:=as.character(Date)] }, sanitize.text.function=identity, width = "100%", digits = 0)
+  
+  output$downloadData <- downloadHandler(
+    
+    filename = function() {
+      paste("covid_hospitalization_time_series.csv", sep = "")
+    },
+    
+    content = function(file) {
+      write.csv(get_time_series_dt()[,Date:=as.character(Date)], file, row.names = FALSE)
+    }
+  )
+  
+  output$plot1 <- renderPlotly({
+    req(input$county1)
+    req(input$doubling_time)
+    
     num_acute_beds_available = input$total_acute_beds
     num_icu_beds_available = input$total_icu_beds
     num_total_beds_available = num_acute_beds_available + num_icu_beds_available
     
     n_days <- input$num_days
-    day_list <- c(0:n_days)
-    
     y_axis <- 'Cases'
     
-    chart_data = melt(data.table(
-      date = Sys.Date() + day_list,
-      estimated_hospitalizations = round(critical_cases) + round(severe_cases),
-      severe_cases = round(severe_cases),
-      critical_cases = round(critical_cases)#,
-      #fatal_cases = fatal_cases
-    ), id.vars = c('date'))
+    chart_data = melt(get_time_series_dt(), id.vars = c('Date'))
     
-    chart_data[chart_data$variable == 'estimated_hospitalizations', 'variable'] <-  'Hospitalizations (Acute + ICU Cases)'
-    chart_data[chart_data$variable == 'severe_cases', 'variable'] <-  'Acute Cases'
-    chart_data[chart_data$variable == 'critical_cases', 'variable'] <-  'ICU Cases'
-    #chart_data[chart_data$variable == 'fatal_cases', 'variable'] <-  'Cumulative Fatal Cases'
+    ymax = chart_data[,max(value)]
 
     gp = ggplot(chart_data,
-                aes(x=date, y=value, group=variable, text = sprintf("date:  %s \n cases: %i", date, value))) +
-      geom_line(aes(linetype = variable, size = variable, color = variable)) +  guides(linetype=FALSE) + guides(size=FALSE) +
-      scale_color_manual(values=c("black", "dodgerblue", "red")) +
-      scale_linetype_manual(values=c("solid", "solid", "solid")) +
-      scale_size_manual(values=c(0.75, 0.5, 0.5, 0.25)) +
+                aes(x=Date, y=value, group=variable, text = sprintf("Date:  %s \n cases: %i", Date, value))) +
+      geom_line(aes(linetype = variable, color = variable)) +  guides(linetype=FALSE) + guides(size=FALSE) +
+      scale_color_manual(values=c("dodgerblue", "red")) +
+      scale_linetype_manual(values=c("solid", "solid")) +
       theme_minimal() +
       ylab("Number of cases") + xlab('Date')  +
-      coord_cartesian(ylim=c(0, max(critical_cases + severe_cases))) +
+      coord_cartesian(ylim=c(0, ymax)) +
       scale_x_date(name="Date", labels = date_format("%b %d",tz = "EST")) +
       ggtitle("Daily number of people hospitalized for COVID-19 (not cumulative)")
-
+    
     if (is.finite(input$day_change_1) & input$day_change_1 > 0 & is.finite(input$double_change_1) & input$double_change_1 > 0) {
       dt_changes = get_dt_changes()
       days <- dt_changes[c(FALSE, TRUE)]
+      
+      gp = gp + scale_color_manual(values=c("dodgerblue", "red", "dodgerblue", "red")) +
+        scale_linetype_manual(values=c("dashed", "dashed", "solid", "solid"))
+      
       for (i in days) {
         gp = gp +
           geom_vline(xintercept = as.numeric(Sys.Date() + i), color = 'grey', linetype = 'dotted') +
-          annotate("text", x = Sys.Date() + i, y = max(critical_cases + severe_cases), size = 3, color = 'gray35',
+          annotate("text", x = Sys.Date() + i, y = ymax, size = 3, color = 'gray35',
                    label = "Intervention")
       }
     }
     
-    if(is.finite(num_total_beds_available)) {
-      gp = gp +
-        geom_hline(yintercept = num_total_beds_available, linetype = "dashed", color = 'grey') + 
-        annotate("text", x = Sys.Date() + 0.75*n_days, y = num_total_beds_available*1.02, label = "Total Beds for COVID Patients", vjust=1, hjust=0, size = 3, color = 'gray35')
-    }
+    # if(is.finite(num_total_beds_available)) {
+    #   gp = gp +
+    #     geom_hline(yintercept = num_total_beds_available, linetype = "dashed", color = 'grey') + 
+    #     annotate("text", x = Sys.Date() + 0.75*n_days, y = num_total_beds_available*1.02, label = "Total Beds for COVID Patients", vjust=1, hjust=0, size = 3, color = 'gray35')
+    # }
     
     if(is.finite(num_acute_beds_available)) {
       gp = gp +
