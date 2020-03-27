@@ -583,7 +583,7 @@ server <- function(input, output, session) {
       }
       
       if (length(county_with_info) > 0) {
-        text = paste(text, 'You can modify the # of beds and % of beds available to COVID-19 patients in the inputs. See Documentation tab for data source. </li>')
+        text = paste(text, 'You can modify the % of beds available to COVID-19 patients in the inputs. See Documentation tab for data source. </li>')
       }
       
       if (length(county_no_info) > 0) {
