@@ -31,7 +31,7 @@ county_cases <- tryCatch(
   {read.csv("https://static.usafacts.org/public/data/covid-19/covid_confirmed_usafacts.csv", stringsAsFactors = FALSE)},
   error = function(cond) {return(NA)})
 if (!is.na(county_cases)) {
-  county_cases <- county_cases[, c(1,2, ncol(county_cases))]
+  county_cases <- county_cases[, c(1,2, ncol(county_cases)-1)]
   county_cases <- county_cases %>% rename_at(vars(colnames(county_cases)), ~ c("FIPS", 'County', 'Cases')) %>% 
     filter(FIPS != 0) %>% mutate(FIPS = as.numeric(FIPS)) %>% select(FIPS, Cases)
   df <- left_join(df, county_cases, by = 'FIPS')
@@ -924,8 +924,8 @@ server <- function(input, output, session) {
       days <- dt_changes[c(FALSE, TRUE)]
       for (i in days) {
         gp = gp +
-          geom_vline(xintercept = as.numeric(Sys.Date() + i), color = 'grey', linetype = 'dashed') +
-          annotate("text", x = Sys.Date() + i, y = max(critical_cases + severe_cases), color = 'grey',
+          geom_vline(xintercept = as.numeric(Sys.Date() + i), color = 'grey', linetype = 'dotted') +
+          annotate("text", x = Sys.Date() + i, y = max(critical_cases + severe_cases), size = 3, color = 'gray35',
                    label = "Intervention")
       }
     }
@@ -933,19 +933,19 @@ server <- function(input, output, session) {
     if(is.finite(num_total_beds_available)) {
       gp = gp +
         geom_hline(yintercept = num_total_beds_available, linetype = "dashed", color = 'grey') + 
-        annotate("text", x = Sys.Date() + 0.5*n_days, y = num_total_beds_available*1.05, label = "Total Beds for COVID Patients", vjust=1, hjust=0, color = 'grey')
+        annotate("text", x = Sys.Date() + 0.75*n_days, y = num_total_beds_available*1.02, label = "Total Beds for COVID Patients", vjust=1, hjust=0, size = 3, color = 'gray35')
     }
     
     if(is.finite(num_acute_beds_available)) {
       gp = gp +
         geom_hline(yintercept = num_acute_beds_available, linetype = "dashed", color = 'grey') + 
-        annotate("text", x = Sys.Date() + 0.5*n_days, y = num_acute_beds_available*1.05, label = "Acute Beds for COVID Patients", vjust=1, hjust=0, color = 'grey')
+        annotate("text", x = Sys.Date() + 0.75*n_days, y = num_acute_beds_available*1.02, label = "Acute Beds for COVID Patients", vjust=1, hjust=0, size = 3, color = 'gray35')
     }
     
     if(is.finite(num_icu_beds_available)) {
       gp = gp +
         geom_hline(yintercept = num_icu_beds_available, linetype = "dashed", color = 'grey') + 
-        annotate("text", x = Sys.Date() + 0.5*n_days, y = num_icu_beds_available*1.05, label = "ICU Beds for COVID Patients", vjust=1, hjust=0, color = 'grey')
+        annotate("text", x = Sys.Date() + 0.75*n_days, y = num_icu_beds_available*1.02, label = "ICU Beds for COVID Patients", vjust=1, hjust=0, size = 3, color = 'gray35')
     }
     
     ggplotly(gp, tooltip = 'text') %>% 
