@@ -104,6 +104,8 @@ ui <- shinyUI(
                                  # sliderInput("days_to_hospitalization", "Days to Hospitalization", 9, min = 0, max = 30),
                                  sliderInput("prop_acute_beds_for_covid", "% of Acute Beds for COVID-19 Cases", 50, min = 0, max = 100),
                                  sliderInput("prop_icu_beds_for_covid", "% of ICU Beds for COVID-19 Cases", 50, min = 0, max = 100),
+                                 # uiOutput("num_acute_beds"),
+                                 # uiOutput("num_icu_beds"),
                                  hr(),
                                  actionButton("reset", "Reset all to default user inputs")
                           )
@@ -347,7 +349,7 @@ server <- function(input, output, session) {
     if (is.null(input$county1) & input$input_radio == 1) {
       list(
         HTML('<b>Cumulative Confirmed Cases</b> (as of <a href="https://usafacts.org/visualizations/coronavirus-covid-19-spread-map/" target="_blank">today</a>)'),
-        numericInput("num_cases", label=NULL, 1, min = 1))
+        numericInput("num_cases", label=NULL, 0, min = 1))
 
     } else
     if (input$input_radio == 1) {
@@ -380,7 +382,26 @@ server <- function(input, output, session) {
       )
     } 
   })
-    
+  
+  output$num_acute_beds <- renderUI({
+    req(input$state1)
+    num_acute_beds = sum((get_county_df() %>% 
+      group_by(County) %>% 
+      summarize(
+        num_acute_beds = max(num_acute_beds, na.rm = TRUE)) %>% 
+      filter(is.finite(num_acute_beds)))$num_acute_beds, na.rm = TRUE)
+    numericInput("total_acute_beds", label = "Total acute beds", num_acute_beds, min = 1, max = 2*num_acute_beds)
+  })
+  
+  output$num_icu_beds <- renderUI({
+    num_icu_beds = sum((get_county_df() %>% 
+                            group_by(County) %>% 
+                            summarize(
+                              num_icu_beds = max(num_icu_beds, na.rm = TRUE)) %>% 
+                            filter(is.finite(num_icu_beds)))$num_icu_beds, na.rm = TRUE)
+    numericInput("total_icu_beds", label = "Total ICU beds", num_icu_beds, min = 1, max = 2*num_icu_beds)
+  })
+
   observeEvent(input$reset, {
     if (!is.na(county_case_history)) {
       num_cases <- sum((get_county_df() %>% group_by(County) %>% summarize(num_cases = max(Cases)) %>% filter(is.finite(num_cases)))$num_cases)
@@ -409,6 +430,21 @@ server <- function(input, output, session) {
     updateNumericInput(session, "double_change_1", value = NA)
     updateNumericInput(session, "double_change_2", value = NA)
     updateNumericInput(session, "double_change_3", value = NA)
+    
+    num_beds_df = get_county_df() %>% 
+      group_by(County) %>% 
+      summarize(
+        num_acute_beds = max(num_acute_beds, na.rm = TRUE),
+        num_icu_beds = max(num_icu_beds, na.rm = TRUE)) %>%
+      filter(is.finite(num_acute_beds)) %>% filter(is.finite(num_icu_beds)) %>% 
+      summarize(
+        num_acute_beds = sum(num_acute_beds, na.rm = TRUE),
+        num_icu_beds = sum(num_icu_beds, na.rm = TRUE))
+    
+    num_acute_beds = num_beds_df$num_acute_beds[1]
+    num_icu_beds = num_beds_df$num_icu_beds[1]
+    updateNumericInput(session, "total_acute_beds", value = num_acute_beds)
+    updateNumericInput(session, "total_icu_beds", value = num_icu_beds)
   })
   
   
@@ -424,7 +460,7 @@ server <- function(input, output, session) {
   observeEvent(input$load_dt_change_examples, {
     updateNumericInput(session, "day_change_1", value = 1)
     updateNumericInput(session, "day_change_2", value = 10)
-    updateNumericInput(session, "day_change_3", value = 23)
+    updateNumericInput(session, "day_change_3", value = 15)
     updateNumericInput(session, "double_change_1", value = 9)
     updateNumericInput(session, "double_change_2", value = 12)
     updateNumericInput(session, "double_change_3", value = 14)
@@ -521,8 +557,8 @@ server <- function(input, output, session) {
       # List counties with and without bed data, and add text about assumption if any county has bed data
       add_assumption = TRUE # Set to FALSE once added
       for (county in input$county1) {
-        num_beds_df = (county_df %>% 
-          filter(County == county) %>% 
+        num_beds_df = (county_df %>%
+          filter(County == county) %>%
           summarize(
             num_acute_beds = max(num_acute_beds, na.rm = T),
             num_icu_beds = max(num_icu_beds, na.rm = T))
@@ -530,7 +566,7 @@ server <- function(input, output, session) {
         num_acute_beds_available = num_beds_df$num_acute_beds[1]*input$prop_acute_beds_for_covid/100
         num_icu_beds_available = num_beds_df$num_icu_beds[1]*input$prop_icu_beds_for_covid/100
         num_total_beds_available = num_acute_beds_available + num_icu_beds_available
-        
+
         if (!is.finite(num_total_beds_available)) {
           county_no_info <- c(county_no_info, county)
         } else {
@@ -547,11 +583,11 @@ server <- function(input, output, session) {
       }
       
       if (length(county_with_info) > 0) {
-        text = paste(text, 'You can modify the % of beds available to COVID-19 patients in the inputs. See Documentation tab for data source.')
+        text = paste(text, 'You can modify the # of beds and % of beds available to COVID-19 patients in the inputs. See Documentation tab for data source. </li>')
       }
       
       if (length(county_no_info) > 0) {
-        text = paste(text, "We did not find information on the number of beds in")
+        text = paste(text, "<li> We did not find information on the number of beds in")
       }
       temp <- ""
       for (county in county_no_info) {
@@ -575,8 +611,8 @@ server <- function(input, output, session) {
       county_with_info <- c()
       
       for (county in unique(county_df$County)) {
-        num_beds_df = (county_df %>% 
-                         filter(County == county) %>% 
+        num_beds_df = (county_df %>%
+                         filter(County == county) %>%
                          summarize(
                            num_total_beds = max(num_acute_beds+num_icu_beds),
                            num_acute_beds = max(num_acute_beds),
@@ -585,6 +621,7 @@ server <- function(input, output, session) {
         num_acute_beds_available = num_beds_df$num_acute_beds[1]*input$prop_acute_beds_for_covid/100
         num_icu_beds_available = num_beds_df$num_icu_beds[1]*input$prop_icu_beds_for_covid/100
         num_total_beds_available = num_acute_beds_available + num_icu_beds_available
+
         
         if (!is.finite(num_total_beds_available)) {
           county_no_info <- c(county_no_info, county)
@@ -601,11 +638,11 @@ server <- function(input, output, session) {
       }
 
       if (length(county_with_info) > 0) {
-        text = paste(text, 'You can modify the % of beds available to COVID-19 patients in the inputs. See Documentation tab for data source.')
+        text = paste(text, 'You can modify the % of beds available to COVID-19 patients in the inputs. See Documentation tab for data source. </li>')
       }
       
       if (length(county_no_info) > 0) {
-        text = paste(text, "We did not find information on the number of beds in")
+        text = paste(text, "<li> We did not find information on the number of beds in")
       }
       temp <- ""
       for (county in county_no_info) {
