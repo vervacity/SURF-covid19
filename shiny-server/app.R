@@ -27,15 +27,21 @@ df$County <- gsub('city', 'City', df$County)
 acute_beds_dt = fread('acute_byFIPS.csv')
 icu_beds_dt = fread('icu_byFIPS.csv')
 bed_dt = merge(acute_beds_dt, icu_beds_dt, by = "FIPS")
-county_cases <- tryCatch(
+county_case_history <- tryCatch(
   {read.csv("https://static.usafacts.org/public/data/covid-19/covid_confirmed_usafacts.csv", stringsAsFactors = FALSE)},
   error = function(cond) {return(NA)})
-if (!is.na(county_cases)) {
-  county_cases <- county_cases[, c(1,2, ncol(county_cases))]
+if (!is.na(county_case_history)) {
+  most_recent_col = ncol(county_case_history)
+  county_cases <- county_case_history[, c(1,2, most_recent_col)]
+  while (sum(!is.na(county_cases[, c(ncol(county_cases))])) == 0) {
+    most_recent_col = most_recent_col - 1
+    county_cases <- county_case_history[, c(1,2, most_recent_col)]
+  }
   county_cases <- county_cases %>% rename_at(vars(colnames(county_cases)), ~ c("FIPS", 'County', 'Cases')) %>% 
     filter(FIPS != 0) %>% mutate(FIPS = as.numeric(FIPS)) %>% select(FIPS, Cases)
   df <- left_join(df, county_cases, by = 'FIPS')
 } 
+
 df <- left_join(df, bed_dt, by = 'FIPS')
 
 ui <- shinyUI(
@@ -345,7 +351,7 @@ server <- function(input, output, session) {
 
     } else
     if (input$input_radio == 1) {
-      if (!is.na(county_cases)) {
+      if (!is.na(county_case_history)) {
         num_cases <- sum((get_county_df() %>% group_by(County) %>% summarize(num_cases = max(Cases)) %>% filter(is.finite(num_cases)))$num_cases)
         if (!is.finite(num_cases)) {num_cases <- 0}
         num_cases <- max(num_cases, 0)
@@ -376,7 +382,7 @@ server <- function(input, output, session) {
   })
     
   observeEvent(input$reset, {
-    if (!is.na(county_cases)) {
+    if (!is.na(county_case_history)) {
       num_cases <- sum((get_county_df() %>% group_by(County) %>% summarize(num_cases = max(Cases)) %>% filter(is.finite(num_cases)))$num_cases)
       if (!is.finite(num_cases)) {num_cases <- 0}
       num_cases <- max(num_cases, 0)
