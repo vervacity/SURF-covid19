@@ -151,7 +151,7 @@ ui <- shinyUI(
                           
                           HTML('
                             <blockquote style="font-size: 1em;">
-                            For each US county, the model accepts as an input the number of COVID-19 hospitalizations and the associated doubling time, if these are available. If these are not available, the model imports the latest number of confirmed cases from the USA facts online repository and accepts user-entered parameters of the ratio of total cases to confirmed cases (e.g. 51) and the COVID-19 population-level doubling time (e.g. 6 days). <br /><br />
+                            For each US county, the model accepts as an input the number of COVID-19 cases or hospitalizations and the associated doubling time, if these are available. If these are not available, the model imports the latest number of confirmed cases from the USA facts online repository and accepts user-entered parameters of the ratio of total cases to confirmed cases (e.g. 5) and the COVID-19 population-level doubling time (e.g. 6 days). <br /><br />
                             The effects of interventions that mitigate the spread of infection (such as social distancing) are simulated with user-entered parameters of the changes in doubling time and the days of those changes. The model estimates county-specific hospitalization rates by combining age-distributions derived from the US census and age-group specific estimates of the case rates of severe symptoms, critical symptoms, and mortality (together morbidity) derived from the Imperial College COVID-19 Response Team.<br /><br />
                             The model estimates the number of people requiring hospitalization using the initial numbers, the doubling time, and the population-specific rates and then compares these to the numbers of relevant beds derived from data from the American Hospital Association. The default assumptions are that: people requiring hospitalization are hospitalized on the day they test positive (the assumptions will change when non-symptomatic people start being tested); those with severe and critical symptoms spend, respectively, 12 days in acute care and 7 days in intensive care; and 50% of each type of bed is available for COVID-19+ patients. 
                             </blockquote>'),
@@ -192,7 +192,7 @@ ui <- shinyUI(
                           br(),
                           # a(href="https://www.thelancet.com/journals/lanres/article/PIIS2213-2600(20)30079-5/fulltext", target = '_blank', "[5] 9.5 days from symptom onset to ICU admission"),
                           # br(),
-                          a(href="https://usafacts.org/visualizations/coronavirus-covid-19-spread-map/", target = '_blank', "[5] Default values of cases by county"),
+                          a(href="https://github.com/nytimes/covid-19-data", target = '_blank', "[5] Default values of cases by county"),
                           br(),
                           a(href="https://science.sciencemag.org/content/early/2020/03/13/science.abb3221.long", target = '_blank', "[6] Estimated 86% (95% CI: [82% - 90%]) of infections went undocumented within China prior to travel restrictions"),
                           br(),
@@ -310,7 +310,7 @@ server <- function(input, output, session) {
 
     if (is.null(input$county1) & input$input_radio == 1) {
       list(
-        HTML('<b>Cumulative Confirmed Cases</b> (as of <a href="https://usafacts.org/visualizations/coronavirus-covid-19-spread-map/" target="_blank">today</a>)'),
+        HTML('<b>Cumulative Confirmed Cases</b> (as of <a href="https://github.com/nytimes/covid-19-data" target="_blank">today</a>)'),
         numericInput("num_cases", label=NULL, 0, min = 1))
 
     } else
@@ -323,7 +323,7 @@ server <- function(input, output, session) {
         num_cases <- 0
       }
       list(
-        HTML('<b>Cumulative Confirmed Cases</b> (as of <a href="https://usafacts.org/visualizations/coronavirus-covid-19-spread-map/" target="_blank">today</a>)'),
+        HTML('<b>Cumulative Confirmed Cases</b> (as of <a href="https://github.com/nytimes/covid-19-data" target="_blank">today</a>)'),
         numericInput("num_cases",  label=NULL, num_cases, min = 1))
       
     } else if (is.null(input$county1) & input$input_radio == 2) {
