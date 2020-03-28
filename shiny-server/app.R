@@ -682,7 +682,7 @@ server <- function(input, output, session) {
     return(dt_changes)
   })
   
-  # Function to get hospitalizations from cumulative cases, with projection backwards from cuendat cases to prevent jump at day LOS
+  # Function to get hospitalizations from cumulative cases, with projection backwards from current cases to prevent jump at day LOS
   get_hospitalizations = function(cumulative_cases, los, doubling_time) {
       
       days_to_hospitalization = 0
@@ -706,7 +706,7 @@ server <- function(input, output, session) {
       # subtract off for length of stay
       return_vec = back_vec[shifted_start:shifted_end] - back_vec[(shifted_start - los):(shifted_end - los)]
       
-      return(return_vec)
+      return(list(result = return_vec, back_vec = back_vec[1:los]))
   }
   
   get_case_numbers <- reactive({
@@ -722,7 +722,6 @@ server <- function(input, output, session) {
     
     doubling_time <- input$doubling_time
     
-    
     # cases without intervention
     critical_without_intervention = critical_cases
     severe_without_intervention = severe_cases
@@ -733,9 +732,15 @@ server <- function(input, output, session) {
     
     # number hospitalized at any one time (without intervention)
     #critical_without_intervention = critical_without_intervention - c(rep(0, input$los_critical), critical_without_intervention)[1:length(critical_without_intervention)]
-    critical_without_intervention = get_hospitalizations(critical_without_intervention, input$los_critical, doubling_time)
+    critical_hospitalizations_obj = get_hospitalizations(critical_without_intervention, input$los_critical, doubling_time)
+    critical_without_intervention = critical_hospitalizations_obj$result
     #severe_without_intervention = severe_without_intervention - c(rep(0, input$los_severe), severe_without_intervention)[1:length(severe_without_intervention)]
-    severe_without_intervention = get_hospitalizations(severe_without_intervention, input$los_severe, doubling_time)
+    severe_hospitalizations_obj = get_hospitalizations(severe_without_intervention, input$los_severe, doubling_time)
+    severe_without_intervention = severe_hospitalizations_obj$result
+    
+    # store the backwards projected numbers to append onto the intervened vectors
+    critical_back_vec = critical_hospitalizations_obj$back_vec
+    severe_back_vec = severe_hospitalizations_obj$back_vec
     
     # cases with intervention
     dt_changes = get_dt_changes()
@@ -753,11 +758,18 @@ server <- function(input, output, session) {
       severe_cases[i+1] = severe_cases[i]*2^(1/doubling_time)
     }
     
+    # no backwards projection here; tack on back_vec from before and subtract accordingly
+    critical_cases = c(critical_back_vec, critical_cases)
+    critical_cases = critical_cases[(input$los_critical + 1):(input$los_critical + n_days + 1)] - critical_cases[1:(n_days + 1)]
+    
+    severe_cases = c(severe_back_vec, severe_cases)
+    severe_cases = severe_cases[(input$los_severe + 1):(input$los_severe + n_days + 1)] - severe_cases[1:(n_days + 1)]
+    
     # number hospitalized at any one time (with intervention)
-    #critical_cases = critical_cases - c(rep(0, input$los_critical), critical_cases)[1:length(critical_cases)]
-    critical_cases = get_hospitalizations(critical_cases, input$los_critical, doubling_time)
-    #severe_cases = severe_cases - c(rep(0, input$los_severe), severe_cases)[1:length(severe_cases)]
-    severe_cases = get_hospitalizations(severe_cases, input$los_severe, doubling_time)
+    # critical_cases = critical_cases - c(rep(0, input$los_critical), critical_cases)[1:length(critical_cases)]
+    # critical_cases = get_hospitalizations(critical_cases, input$los_critical, doubling_time)$result
+    # severe_cases = severe_cases - c(rep(0, input$los_severe), severe_cases)[1:length(severe_cases)]
+    # severe_cases = get_hospitalizations(severe_cases, input$los_severe, doubling_time)$result
     
     total_population <- naive_estimations$total_population
     validate(
