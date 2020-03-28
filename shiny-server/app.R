@@ -118,7 +118,7 @@ ui <- shinyUI(
                         div('These models are planning tools and not predictions. They are based on data from Stanford and several public sources. The tools include assumptions that are changing as more information becomes available and will continue to evolve.',
                             style = 'margin-bottom: 15px'),
                         hr(),
-                        h4("This tool allows healthcare providers and policy makers to estimate ICU and Acute Care bed demand for COVID-19 patients. See the Documentation tab for methodology."),
+                        h4("This tool allows healthcare providers and policy makers to estimate ICU and Acute Care bed demand for COVID-19 patients. The projections are only designed for regional symptomatic infection rates below 20% and do not account for community immunity. See the Documentation tab for methodology."),
                         hr(),
                         htmlOutput("text1"),
                         tags$head(tags$style("ul, li {margin-left: 0.5em; padding-left: 0;}")),
@@ -774,7 +774,7 @@ server <- function(input, output, session) {
     total_population <- naive_estimations$total_population
     validate(
       need(input$num_cases != 0, "To run the model enter a non-zero number of cases."),
-      need((severe_cases[n_days+1] + critical_cases[n_days + 1]) < 0.25*total_population, 
+      need((severe_cases[n_days+1] + critical_cases[n_days + 1]) < 0.2*total_population, 
            "Current data are insufficient to reliably model infection rates this high. The model will be updated as more data become available. To proceed, reduce the initial number; or reduce the days to model; or increase the doubling time.")
     )
   
@@ -808,12 +808,16 @@ server <- function(input, output, session) {
         `Estimated<br />Acute Hospitalizations<br />(with intervention)` = round(case_numbers$severe),
         `Estimated<br />ICU Hospitalizations<br />(with intervention)` = round(case_numbers$critical)
       )]
+    } else {
+      chart_data[,`:=`(
+      `Estimated<br />Total Hospitalizations<br />(without intervention)` =
+        `Estimated<br />Acute Hospitalizations<br />(without intervention)` + `Estimated<br />ICU Hospitalizations<br />(without intervention)`)]
     }
     
     chart_data
   })
   
-  output$table2 <- renderTable({ get_time_series_dt()[,Date:=as.character(Date)] }, sanitize.text.function=identity, width = "100%", digits = 0)
+  output$table2 <- renderTable({ copy(get_time_series_dt())[,Date:=as.character(Date)] }, sanitize.text.function=identity, width = "100%", digits = 0)
   
   output$downloadData <- downloadHandler(
     
@@ -822,7 +826,7 @@ server <- function(input, output, session) {
     },
     
     content = function(file) {
-      write.csv(get_time_series_dt()[,Date:=as.character(Date)], file, row.names = FALSE)
+      write.csv(copy(get_time_series_dt())[,Date:=as.character(Date)], file, row.names = FALSE)
     }
   )
   
@@ -844,8 +848,8 @@ server <- function(input, output, session) {
     gp = ggplot(chart_data,
                 aes(x=Date, y=value, group=variable, text = sprintf("Date:  %s \n cases: %i", Date, value))) +
       geom_line(aes(linetype = variable, color = variable)) +  guides(linetype=FALSE) + guides(size=FALSE) +
-      scale_color_manual(values=c("dodgerblue", "red")) +
-      scale_linetype_manual(values=c("solid", "solid")) +
+      scale_color_manual(values=c("dodgerblue", "red", "black")) +
+      scale_linetype_manual(values=c("solid", "solid", "solid")) +
       theme_minimal() +
       ylab("Number of cases") + xlab('Date')  +
       coord_cartesian(ylim=c(0, ymax)) +
