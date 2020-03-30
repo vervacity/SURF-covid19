@@ -52,6 +52,7 @@ df <- left_join(df, bed_dt, by = 'FIPS')
 ui <- shinyUI(
   list(
   HTML('<div style = "display: block; width: 100%; height: 60px; background: url(banner.png); background-repeat: no-repeat; background-size: auto; background-position: left center; background-size: contain; margin-left: 15px;"></div>'),
+  tags$head(includeHTML(("google-analytics.html"))),
 
   navbarPage("Projecting Severe Cases of COVID-19",
              
