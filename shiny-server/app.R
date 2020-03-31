@@ -358,7 +358,7 @@ server <- function(input, output, session) {
     req(input$state1)
     if (input$input_radio == 1) {
       list(
-        HTML('<b>Symptomatic Cases per Confirmed Case</b> <a href="https://www.imperial.ac.uk/media/imperial-college/medicine/sph/ide/gida-fellowships/Imperial-College-COVID19-NPI-modelling-16-03-2020.pdf" target="_blank">(Symptomatic definition)</a>'),
+        HTML('<b>Symptomatic Cases per Confirmed Case</b> <a href="https://www.imperial.ac.uk/media/imperial-college/medicine/sph/ide/gida-fellowships/Imperial-College-COVID19-NPI-modelling-16-03-2020.pdf" target="_blank">(Symptomatic definition)</a> <a href="https://docs.google.com/spreadsheets/d/1SpxZbc0ljj0BPfLRYjP5KXzikciSJc9P5dT2q43gMQo/edit?usp=sharing" target="_blank">(Example values)</a>'),
         sliderInput("case_scaler", label = NULL, 5, min = 1, max = 20) 
       )
     } 
