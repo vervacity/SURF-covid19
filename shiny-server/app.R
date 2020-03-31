@@ -175,7 +175,7 @@ ui <- shinyUI(
                             The model estimates the number of people requiring hospitalization using the initial numbers, the doubling time, and the population-specific rates and then compares these to the numbers of relevant beds derived from data from the American Hospital Association. The default assumptions are that: people requiring hospitalization are hospitalized on the day they test positive (the assumptions will change when non-symptomatic people start being tested); those with severe and critical symptoms spend, respectively, 12 days in acute care and 7 days in intensive care; and 50% of each type of bed is available for COVID-19+ patients. 
                             </blockquote>'),
                           
-                          h4(a(href='https://surf.stanford.edu/wp-content/uploads/2020/03/MEDRXIV-2020-044842v1-Scheinker.pdf', "Click here for the full metholodogy [In Submission].",
+                          h4(a(href='https://www.medrxiv.org/content/10.1101/2020.03.26.20044842v1', "Click here for the full metholodogy [In Submission].",
                                target = '_blank')),
                           br(),
                           h4(a(href='https://docs.google.com/spreadsheets/d/1x9IjGEjLRO_8Tz7Y6Nf6rOeUsItZfMjoj83Qf5D9jo0/', "Click here for the county-age population numbers and severity rates we use as input.",
