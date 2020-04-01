@@ -50,7 +50,7 @@ Will now project 21-day time series of cumulative hospitalizations with doubling
 ```{r}
 start_date = '2020-03-30'
 num_days_to_project = 21
-doubling_times = c(6,10,14)
+doubling_times = c(7,10,14)
 
 dts_cross_dates = as.data.table(expand.grid(
   doubling_times,
@@ -109,8 +109,8 @@ get_hospitalizations = function(cumulative_cases, los, doubling_time) {
 
 
 # use on our data
-long_dt[,icu_census := get_hospitalizations(est_icu_hosp, ICU_LOS, doubling_time), by = c('County', 'doubling_time')]
-long_dt[,acute_census := get_hospitalizations(est_acute_hosp, ACUTE_LOS, doubling_time), by = c('County', 'doubling_time')]
+long_dt[,icu_census := get_hospitalizations(est_icu_hosp, ICU_LOS, doubling_time=6), by = c('County', 'doubling_time')]
+long_dt[,acute_census := get_hospitalizations(est_acute_hosp, ACUTE_LOS, doubling_time=6), by = c('County', 'doubling_time')]
 ```
 
 
