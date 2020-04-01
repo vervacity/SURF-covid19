@@ -148,5 +148,5 @@ get_plot <- function(icu_or_acute, version = 'v1') { # icu_or_acute can be "ICU"
   return(p)
 }
 
-p <- get_plot('ICU', 'v2')
-ggplotly(p, tooltip = 'text')
+p <- get_plot('Acute', 'v1')
+# ggplotly(p, tooltip = 'text')
