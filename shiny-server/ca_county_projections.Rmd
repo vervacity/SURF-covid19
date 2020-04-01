@@ -15,7 +15,11 @@ df$County <- gsub('city', 'City', df$County)
 df = df %>% filter(State == "California") %>% group_by(FIPS, County) %>%
     summarise(
       total_population = sum(population_in_age_group),
-      wtd_prop_hosp_in_icu = weighted.mean(critical_case_rate/(critical_case_rate+severe_cases_rate), population_in_age_group))
+      wtd_critical_case_rate =  weighted.mean(critical_case_rate, population_in_age_group),
+      wtd_acute_case_rate =  weighted.mean(severe_cases_rate, population_in_age_group)) %>%
+  mutate(
+      wtd_prop_hosp_in_icu = wtd_critical_case_rate/(wtd_critical_case_rate+wtd_acute_case_rate)) %>%
+  select(County, total_population, wtd_prop_hosp_in_icu)
 df = df %>% mutate(County = gsub(' County', '', County))
 df
 ```
@@ -114,6 +118,9 @@ long_dt[,acute_census := get_hospitalizations(est_acute_hosp, ACUTE_LOS, doublin
 ```
 
 
+```{r}
+long_dt[County == "Santa Clara" & doubling_time == 7]
+```
 
 
 Example plot
