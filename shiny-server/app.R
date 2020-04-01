@@ -51,6 +51,7 @@ df <- left_join(df, bed_dt, by = 'FIPS')
 
 ui <- shinyUI(
   list(
+  HTML('<meta name="viewport" content="width=1024">'), 
   HTML('<div style = "display: block; width: 100%; height: 60px; background: url(banner.png); background-repeat: no-repeat; background-size: auto; background-position: left center; background-size: contain; margin-left: 15px;"></div>'),
   tags$head(includeHTML(("google-analytics.html"))),
 
@@ -146,11 +147,12 @@ ui <- shinyUI(
                         
                         fluidRow(
                           column(12,
-                                 selectInput(inputId = "state1", #name of input
+                                 selectInput(inputId = "state2", #name of input
                                              label = "State:", #label displayed in ui
                                              choices = as.character(sort(unique(df$State))),
                                              # calls unique values from the State column in the previously created table
-                                             selected = "California") #default choice (not required)
+                                             selected = "California",
+                                             multiple = TRUE) #default choice (not required)
                           )),
                         width = 2),
                       mainPanel(
@@ -303,7 +305,7 @@ server <- function(input, output, session) {
     req(input$state1)
     if (!input$state_all_selector) {
       data_available = df[df$State == input$state1, "County"]
-      
+
       selectInput(inputId = "county1", #name of input
                   label = "County:", #label displayed in ui
                   choices = sort(unique(data_available)), #calls list of available counties
@@ -901,8 +903,8 @@ server <- function(input, output, session) {
   
   output$plot2 <- renderPlotly({
     
-    req(input$state1)
-    selected_states <- input$state1
+    req(input$state2)
+    selected_states <- input$state2
     state_df <- df %>% filter(State %in% selected_states)
     
     state_df <- state_df %>% group_by(State, FIPS) %>%
