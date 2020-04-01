@@ -1,0 +1,59 @@
+County,FIPS,num_icu_beds,num_icu_beds_State
+Alameda,6001,170,122
+Alpine,6003,,
+Amador,6005,0,4
+Butte,6007,43,5
+Calaveras,6009,6,5
+Colusa,6011,,5
+Contra Costa,6013,142,61
+Del Norte,6015,0,5
+El Dorado,6017,28,9
+Fresno,6019,221,24
+Glenn,6021,0,
+Humboldt,6023,24,10
+Imperial,6025,8,4
+Inyo,6027,0,
+Kern,6029,133,32
+Kings,6031,0,0
+Lake,6033,4,3
+Lassen,6035,0,
+Los Angeles,6037,1828,380
+Madera,6039,10,4
+Marin,6041,34,16
+Mariposa,6043,0,
+Mendocino,6045,10,8
+Merced,6047,24,3
+Modoc,6049,0,
+Mono,6051,2,2
+Monterey,6053,43,17
+Napa,6055,66,9
+Nevada,6057,0,3
+Orange,6059,441,105
+Placer,6061,20,29
+Plumas,6063,0,
+Riverside,6065,280,77
+Sacramento,6067,236,95
+San Benito,6069,8,
+San Bernardino,6071,369,77
+San Diego,6073,505,181
+San Francisco,6075,215,52
+San Joaquin,6077,34,15
+San Luis Obispo,6079,27,939
+San Mateo,6081,89,29
+Santa Barbara,6083,48,48
+Santa Clara,6085,266,103
+Santa Cruz,6087,6,5
+Shasta,6089,50,2
+Sierra,6091,,
+Siskiyou,6093,4,3
+Solano,6095,70,47
+Sonoma,6097,56,26
+Stanislaus,6099,54,29
+Sutter,6101,0,
+Tehama,6103,0,2
+Trinity,6105,0,
+Tulare,6107,29,7
+Tuolumne,6109,6,3
+Ventura,6111,53,15
+Yolo,6113,8,0
+Yuba,6115,24,10
