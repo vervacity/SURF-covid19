@@ -36,8 +36,7 @@ get_df <- function(version = 'v1') { # version can be 'v1' or 'v2'
     bed_dt = merge(acute_beds_dt, icu_beds_dt, by = "FIPS")
     df_w_beds = merge(df, bed_dt, by="FIPS", all.x = TRUE)
     
-    hosp = fread('data/nigam_hospital_data_0330.csv')[,.(County, original_hosp = `COVID-19 Positive Patients March 30 2020`,
-                                                      num_icu_beds_State = `Available ICU beds March 30 2020`)]
+    hosp = fread('data/nigam_hospital_data_0330.csv')[,.(County, original_hosp = `COVID-19 Positive Patients March 30 2020`)]
     df_w_beds_hosp = as.data.table(merge(df_w_beds, hosp, by = 'County', all.x = TRUE))
   } else {
     acute_beds_dt = fread('acute_byFIPS.csv')
@@ -49,8 +48,6 @@ get_df <- function(version = 'v1') { # version can be 'v1' or 'v2'
   }
   return(df_w_beds_hosp)
 }
-
-View(get_df() %>% select(County, FIPS, num_icu_beds, num_icu_beds_State))
 
 # function from Shiny app
 get_hospitalizations = function(cumulative_cases, los, doubling_time) {

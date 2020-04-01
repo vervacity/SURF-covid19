@@ -22,10 +22,10 @@ library(reshape2)
 library(usmap)
 library(scales)
 
-df <- read.csv('county_age_severity_rates_v6.csv', stringsAsFactors = FALSE)
+df <- read.csv('data/county_age_severity_rates_v6.csv', stringsAsFactors = FALSE)
 df$County <- gsub('city', 'City', df$County)
-acute_beds_dt = fread('acute_byFIPS.csv')
-icu_beds_dt = fread('icu_byFIPS.csv')
+acute_beds_dt = fread('data/acute_byFIPS.csv')
+icu_beds_dt = fread('data/icu_byFIPS.csv')
 bed_dt = merge(acute_beds_dt, icu_beds_dt, by = "FIPS")
 
 county_case_history <- tryCatch(
