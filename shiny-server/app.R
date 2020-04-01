@@ -56,7 +56,7 @@ ui <- shinyUI(
   tags$head(includeHTML(("google-analytics.html"))),
 
   navbarPage("Projecting Severe Cases of COVID-19",
-             
+
              tabPanel("Calculator",
                       sidebarPanel(
                         

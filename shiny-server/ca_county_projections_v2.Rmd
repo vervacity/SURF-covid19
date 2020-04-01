@@ -1,0 +1,195 @@
+```{r}
+library(data.table)
+library(dplyr)
+library(lubridate)
+library(ggplot2)
+library(viridis)
+library(reshape2)
+```
+
+
+Load conditional severity rates at county-level for CA counties
+```{r}
+df <- read.csv('county_age_severity_rates_v6.csv', stringsAsFactors = FALSE)
+df$County <- gsub('city', 'City', df$County)
+df = df %>% filter(State == "California") %>% group_by(FIPS, County) %>%
+    summarise(
+      total_population = sum(population_in_age_group),
+      wtd_critical_case_rate =  weighted.mean(critical_case_rate, population_in_age_group),
+      wtd_acute_case_rate =  weighted.mean(severe_cases_rate, population_in_age_group)) %>%
+  mutate(
+      wtd_prop_hosp_in_icu = wtd_critical_case_rate/(wtd_critical_case_rate+wtd_acute_case_rate)) %>%
+  select(County, total_population, wtd_prop_hosp_in_icu)
+df = df %>% mutate(County = gsub(' County', '', County))
+df
+```
+
+Join in bed data
+```{r}
+acute_beds_dt = fread('acute_byFIPS.csv')
+# icu_beds_dt = fread('icu_byFIPS.csv')
+# bed_dt = merge(acute_beds_dt, icu_beds_dt, by = "FIPS")
+# df_w_beds = merge(df, bed_dt, by="FIPS", all.x = TRUE)
+df_w_beds = merge(df, acute_beds_dt, by = "FIPS")
+df_w_beds
+```
+
+
+Merge in current hospitalizations (3/30)
+```{r}
+# CA Hospitalizations on 3/30
+# hosp = fread('data/nigam_hospital_data_0330.csv')[,.(County, original_hosp = `COVID-19 Positive Patients March 30 2020`)]
+hosp = fread('data/nigam_hospital_data_0330.csv')[,.(County, original_hosp = `COVID-19 Positive Patients March 30 2020`,
+                                                     num_icu_beds = `Available ICU beds March 30 2020`)]
+df_w_beds_hosp = as.data.table(merge(df_w_beds, hosp, by = 'County', all.x = TRUE))
+df_w_beds_hosp
+```
+
+```{r}
+print(paste("Counties with nonzero hospitalizations: ", df_w_beds_hosp[original_hosp>0, .N]))
+```
+
+
+For now, only project hospitalizations for counties with nonzero hospitalizations.
+Projecting hospitalizations for other counties requires stronger assumptions about testing and/or fatality rates in order to estimate hospitalizations.
+
+Will now project 21-day time series of cumulative hospitalizations with doubling times of 6, 10, 14
+```{r}
+start_date = '2020-03-30'
+num_days_to_project = 21
+doubling_times = c(7,10,14)
+
+dts_cross_dates = as.data.table(expand.grid(
+  doubling_times,
+  as.Date('2020-03-30') + seq(0, num_days_to_project)
+))
+setnames(dts_cross_dates, c('doubling_time', 'date'))
+
+long_dt = merge(
+  df_w_beds_hosp[original_hosp>0][, i:=1],
+  dts_cross_dates[,i:=1],
+  by = 'i',
+  allow.cartesian = TRUE
+  )[,i:=NULL]
+
+long_dt[, days_since_start_date := as.numeric(date - as.Date(start_date)), by=.I]
+long_dt[, est_hosp := original_hosp * 2^(days_since_start_date/doubling_time)]
+long_dt[, `:=`(
+  est_acute_hosp = (1-wtd_prop_hosp_in_icu) * est_hosp,
+  est_icu_hosp = wtd_prop_hosp_in_icu * est_hosp
+)]
+long_dt
+```
+
+
+Estimate hospital census using LOS values
+```{r}
+ICU_LOS = 9
+ACUTE_LOS = 7
+
+# function from Shiny app
+get_hospitalizations = function(cumulative_cases, los, doubling_time) {
+  
+  days_to_hospitalization = 0
+  
+  # project back los + days to hospitalization days
+  back_vec = c(rep(NA, los + days_to_hospitalization), cumulative_cases)
+  for (i in (los + days_to_hospitalization):1) {
+    back_vec[i] = back_vec[i + 1]/2^(1/doubling_time)
+  }
+  
+  # get indices of original vectors
+  original_start = los + days_to_hospitalization + 1
+  original_end = los + days_to_hospitalization + length(cumulative_cases)
+  stopifnot(all.equal(back_vec[original_start:original_end], cumulative_cases))
+  stopifnot(length(back_vec) == original_end)
+  
+  # get indices of vectors shifted by days to hospitalization
+  shifted_start = original_start - days_to_hospitalization
+  shifted_end = original_end - days_to_hospitalization
+  
+  # subtract off for length of stay
+  return_vec = back_vec[shifted_start:shifted_end] - back_vec[(shifted_start - los):(shifted_end - los)]
+  
+  return(list(result = return_vec, back_vec = back_vec[1:los]))
+}
+
+
+# use on our data
+long_dt[,icu_census := get_hospitalizations(est_icu_hosp, ICU_LOS, doubling_time=6), by = c('County', 'doubling_time')]
+long_dt[,acute_census := get_hospitalizations(est_acute_hosp, ACUTE_LOS, doubling_time=6), by = c('County', 'doubling_time')]
+```
+
+
+```{r}
+long_dt[County == "Santa Clara" & doubling_time == 7]
+```
+
+
+Example plot
+```{r}
+ggplot(long_dt[County %in% c('Alameda', 'Santa Clara', 'San Mateo', 'San Francisco')],
+       aes(x=date, y=icu_census, color=factor(doubling_time))) + geom_line() +
+       facet_wrap(~County, ncol=2)
+```
+
+
+Create county-level output
+
+```{r}
+# Filter to rows for Apr 7 and Apr 14
+date1 = '2020-04-07'
+date2 = '2020-04-14'
+
+filtered_dt = long_dt[date %in% c(as.Date(date1), as.Date(date2))]
+
+#Subset columns
+filtered_dt = filtered_dt[,.(County, num_acute_beds, num_icu_beds, doubling_time, date, acute_census = round(acute_census), icu_census = round(icu_census))]
+filtered_dt
+```
+
+```{r}
+# pivot ICU data to wide table
+icu_wide = as.data.table(dcast(filtered_dt, County + num_icu_beds ~ date + doubling_time, value.var = c('icu_census')))
+icu_wide = icu_wide[,.(
+  County, 
+  April_7_ICU_LB = get(paste(date1, doubling_times[3], sep='_')),
+  April_7_ICU_M = get(paste(date1, doubling_times[2], sep='_')),
+  April_7_ICU_UB = get(paste(date1, doubling_times[1], sep='_')),
+  April_14_ICU_LB = get(paste(date2, doubling_times[3], sep='_')),
+  April_14_ICU_M = get(paste(date2, doubling_times[2], sep='_')),
+  April_14_ICU_UB = get(paste(date2, doubling_times[1], sep='_')),
+  ICU_Utilization_UB = get(paste(date2, doubling_times[1], sep='_'))/num_icu_beds
+)]
+icu_wide
+```
+
+
+```{r}
+# pivot Acute data to wide table
+acute_wide = as.data.table(dcast(filtered_dt, County + num_acute_beds ~ date + doubling_time, value.var = c('acute_census')))
+acute_wide = acute_wide[,.(
+  County, 
+  April_7_Acute_LB = get(paste(date1, doubling_times[3], sep='_')),
+  April_7_Acute_M = get(paste(date1, doubling_times[2], sep='_')),
+  April_7_Acute_UB = get(paste(date1, doubling_times[1], sep='_')),
+  April_14_Acute_LB = get(paste(date2, doubling_times[3], sep='_')),
+  April_14_Acute_M = get(paste(date2, doubling_times[2], sep='_')),
+  April_14_Acute_UB = get(paste(date2, doubling_times[1], sep='_')),
+  Acute_Utilization_UB = get(paste(date2, doubling_times[1], sep='_'))/num_acute_beds
+)]
+acute_wide
+```
+
+Combine the Acute and ICU data
+```{r}
+combined_data = merge(icu_wide, acute_wide, by = 'County')
+combined_data
+```
+
+
+Write to CSV
+```{r}
+fwrite(combined_data, 'data/ca_county_projections_v2.csv')
+```
+
