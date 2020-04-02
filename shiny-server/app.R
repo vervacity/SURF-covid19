@@ -394,7 +394,7 @@ server <- function(input, output, session) {
       if (is.finite(dt)) {
         list(HTML(paste0('Enter the <b>Doubling Time</b>, the number of days until the cumulative number of hospitalization/cases doubles.<br/>
                 <a href="https://www.nytimes.com/interactive/2020/03/21/upshot/coronavirus-deaths-by-country.html?action=click&module=Top%20Stories&pgtype=Homepage" target="_blank">(General range: 2-7 in the US)</a></br>
-                Our naive estimate for this area is ', round(dt, 2), ' days.</br>')),
+                Our naive estimate for this area is ', round(dt, 1), ' days.</br>')),
              numericInput("doubling_time", NULL, value = NA, min = 1, max = 20))
       } else {
         list(HTML('Enter the <b>Doubling Time</b>, the number of days until the cumulative number of hospitalization/cases doubles.<br/><a href="https://www.nytimes.com/interactive/2020/03/21/upshot/coronavirus-deaths-by-country.html?action=click&module=Top%20Stories&pgtype=Homepage" target="_blank">(General range: 2-7 in the US)</a>'),
