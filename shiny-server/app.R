@@ -29,18 +29,9 @@ icu_beds_dt = fread('data/icu_byFIPS.csv')
 bed_dt = merge(acute_beds_dt, icu_beds_dt, by = "FIPS")
 
 county_case_history <- tryCatch(
-  # {read.csv("https://static.usafacts.org/public/data/covid-19/covid_confirmed_usafacts.csv", stringsAsFactors = FALSE)},
   {read.csv("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv", stringsAsFactors = FALSE)},
   error = function(cond) {return(NA)})
 if (!is.na(county_case_history)) {
-  # most_recent_col = ncol(county_case_history)
-  # county_cases <- county_case_history[, c(1,2, most_recent_col)]
-  # while (sum(!is.na(county_cases[, c(ncol(county_cases))])) == 0) {
-  #   most_recent_col = most_recent_col - 1
-  #   county_cases <- county_case_history[, c(1,2, most_recent_col)]
-  # }
-  # county_cases <- county_cases %>% rename_at(vars(colnames(county_cases)), ~ c("FIPS", 'County', 'Cases')) %>%
-  #   filter(FIPS != 0) %>% mutate(FIPS = as.numeric(FIPS)) %>% select(FIPS, Cases)
   county_case_history <- county_case_history %>% mutate(fips = as.integer(fips), date = as.Date(date))
   county_cases <- left_join(county_case_history %>% group_by(fips) %>% summarize(date = max(date)), county_case_history) %>% 
     rename(FIPS = fips, Cases = cases) %>% select(FIPS, Cases)
@@ -662,11 +653,11 @@ server <- function(input, output, session) {
   
   get_dt_changes <- reactive({
     
-    n_days = input$num_days
+    num_days = input$num_days
     valid_pair <- function(dt, day) { 
       if (!is.finite(dt) | !is.finite(day)) {return(FALSE)}
       if (day != as.integer(day)) {return(FALSE)}
-      if (day >= n_days | day < 1) {return(FALSE)}
+      if (day >= num_days | day < 1) {return(FALSE)}
       return(TRUE)
     }
     
@@ -717,18 +708,18 @@ server <- function(input, output, session) {
     
     naive_estimations <- get_naive_estimations()
     
-    n_days <- input$num_days
-    # cases <- rep(input$num_cases * input$case_scaler, n_days+1)
-    fatal_cases <- rep(naive_estimations$estimated_fatal_cases, n_days+1)
-    critical_cases <- rep(naive_estimations$estimated_critical_cases, n_days+1)
-    severe_cases <- rep(naive_estimations$estimated_severe_cases, n_days+1)
+    num_days <- input$num_days
+    # cases <- rep(input$num_cases * input$case_scaler, num_days+1)
+    fatal_cases <- rep(naive_estimations$estimated_fatal_cases, num_days+1)
+    critical_cases <- rep(naive_estimations$estimated_critical_cases, num_days+1)
+    severe_cases <- rep(naive_estimations$estimated_severe_cases, num_days+1)
     
     doubling_time <- input$doubling_time
     
     # cases without intervention
     critical_without_intervention = critical_cases
     severe_without_intervention = severe_cases
-    for (i in 1:n_days) {
+    for (i in 1:num_days) {
       critical_without_intervention[i+1] = critical_without_intervention[i]*2^(1/doubling_time)
       severe_without_intervention[i+1] = severe_without_intervention[i]*2^(1/doubling_time)
     }
@@ -748,7 +739,7 @@ server <- function(input, output, session) {
     # cases with intervention
     dt_changes = get_dt_changes()
     
-    for (i in 1:n_days) {
+    for (i in 1:num_days) {
       if (length(dt_changes) > 0) {
         days <- dt_changes[c(FALSE, TRUE)]
         if ((i-1) %in% days) {
@@ -763,10 +754,10 @@ server <- function(input, output, session) {
     
     # no backwards projection here; tack on back_vec from before and subtract accordingly
     critical_cases = c(critical_back_vec, critical_cases)
-    critical_cases = critical_cases[(input$los_critical + 1):(input$los_critical + n_days + 1)] - critical_cases[1:(n_days + 1)]
+    critical_cases = critical_cases[(input$los_critical + 1):(input$los_critical + num_days + 1)] - critical_cases[1:(num_days + 1)]
     
     severe_cases = c(severe_back_vec, severe_cases)
-    severe_cases = severe_cases[(input$los_severe + 1):(input$los_severe + n_days + 1)] - severe_cases[1:(n_days + 1)]
+    severe_cases = severe_cases[(input$los_severe + 1):(input$los_severe + num_days + 1)] - severe_cases[1:(num_days + 1)]
     
     # number hospitalized at any one time (with intervention)
     # critical_cases = critical_cases - c(rep(0, input$los_critical), critical_cases)[1:length(critical_cases)]
@@ -777,7 +768,7 @@ server <- function(input, output, session) {
     total_population <- naive_estimations$total_population
     validate(
       need(input$num_cases != 0, "To run the model enter a non-zero number of cases."),
-      need((severe_cases[n_days+1] + critical_cases[n_days + 1]) < 0.2*total_population, 
+      need((severe_cases[num_days+1] + critical_cases[num_days + 1]) < 0.2*total_population, 
            "Current data are insufficient to reliably model infection rates this high. The model will be updated as more data become available. To proceed, reduce the initial number; or reduce the days to model; or increase the doubling time.")
     )
   
@@ -797,8 +788,8 @@ server <- function(input, output, session) {
     
     case_numbers <- get_case_numbers()
     
-    n_days <- input$num_days
-    day_list <- c(0:n_days)
+    num_days <- input$num_days
+    day_list <- c(0:num_days)
     
     chart_data = data.table(
       Date = Sys.Date() + day_list,
@@ -841,7 +832,7 @@ server <- function(input, output, session) {
     num_icu_beds_available = input$total_icu_beds
     num_total_beds_available = num_acute_beds_available + num_icu_beds_available
     
-    n_days <- input$num_days
+    num_days <- input$num_days
     y_axis <- 'Cases'
     
     chart_data = melt(get_time_series_dt(), id.vars = c('Date'))
@@ -877,19 +868,19 @@ server <- function(input, output, session) {
     # if(is.finite(num_total_beds_available)) {
     #   gp = gp +
     #     geom_hline(yintercept = num_total_beds_available, linetype = "dashed", color = 'grey') + 
-    #     annotate("text", x = Sys.Date() + 0.75*n_days, y = num_total_beds_available*1.02, label = "Total Beds for COVID Patients", vjust=1, hjust=0, size = 3, color = 'gray35')
+    #     annotate("text", x = Sys.Date() + 0.75*num_days, y = num_total_beds_available*1.02, label = "Total Beds for COVID Patients", vjust=1, hjust=0, size = 3, color = 'gray35')
     # }
     
     if(is.finite(num_acute_beds_available)) {
       gp = gp +
         geom_hline(yintercept = num_acute_beds_available, linetype = "dashed", color = 'grey') + 
-        annotate("text", x = Sys.Date() + 0.75*n_days, y = num_acute_beds_available*1.02, label = "Acute Beds for COVID Patients", vjust=1, hjust=0, size = 3, color = 'gray35')
+        annotate("text", x = Sys.Date() + 0.75*num_days, y = num_acute_beds_available*1.02, label = "Acute Beds for COVID Patients", vjust=1, hjust=0, size = 3, color = 'gray35')
     }
     
     if(is.finite(num_icu_beds_available)) {
       gp = gp +
         geom_hline(yintercept = num_icu_beds_available, linetype = "dashed", color = 'grey') + 
-        annotate("text", x = Sys.Date() + 0.75*n_days, y = num_icu_beds_available*1.02, label = "ICU Beds for COVID Patients", vjust=1, hjust=0, size = 3, color = 'gray35')
+        annotate("text", x = Sys.Date() + 0.75*num_days, y = num_icu_beds_available*1.02, label = "ICU Beds for COVID Patients", vjust=1, hjust=0, size = 3, color = 'gray35')
     }
     
     ggplotly(gp, tooltip = 'text', height = 640) %>% 
