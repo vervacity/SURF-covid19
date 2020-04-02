@@ -157,16 +157,13 @@ wide_icu_str
 
 Now create a version that just shows excess census over 30% of AHA ICU beds
 ```{r}
-
 icu_time_series_long_f = icu_time_series_long %>%
-  filter(icu_census_ub >= est_icu_beds_available)
-
-icu_time_series_long_f = icu_time_series_long_f %>%
   mutate(excess_demand = paste0(pmax(0, icu_census_m - est_icu_beds_available), 
                                 ' [', pmax(0, icu_census_lb - est_icu_beds_available), ', ', 
-                                icu_census_ub - est_icu_beds_available, ']'))
+                                icu_census_ub - est_icu_beds_available, ']')) %>%
+  mutate(excess_demand = ifelse(icu_census_ub>est_icu_beds_available, excess_demand, NA))
 
-wide_icu_excess_demand = as.data.table(dcast(icu_time_series_long_f, County + est_icu_beds_available ~ date, value.var = c('excess_demand')))[est_icu_beds_available>0]
+wide_icu_excess_demand = as.data.table(dcast(icu_time_series_long_f, County + est_icu_beds_available ~ date, value.var = c('excess_demand')))
 wide_icu_excess_demand
 ```
 
@@ -174,5 +171,42 @@ Write the ICU tables to CSV for now
 ```{r}
 fwrite(wide_icu_str, 'data/wide_icu_str.csv')
 fwrite(wide_icu_excess_demand, 'data/wide_icu_excess_demand.csv')
+```
+
+
+And let's do the same for Acute/Floor beds
+
+```{r}
+acute_time_series_long = long_dt %>% group_by(County, date) %>%
+  summarise(
+    est_acute_beds_available = max(round(num_acute_beds * PROP_OF_AHA_BEDS_AVAILABLE)),
+    acute_census_lb = round(max(ifelse(doubling_time == doubling_times[3], acute_census, 0))),
+    acute_census_m = round(max(ifelse(doubling_time == doubling_times[2], acute_census, 0))),
+    acute_census_ub = round(max(ifelse(doubling_time == doubling_times[1], acute_census, 0))),
+  ) %>% ungroup()
+
+acute_time_series_long = acute_time_series_long %>% mutate(acute_census_str = paste0(acute_census_m, ' [', acute_census_lb, ', ', acute_census_ub, ']'))
+
+# acute_time_series_long %>% filter(County == "Santa Clara")
+
+wide_acute_str = as.data.table(dcast(acute_time_series_long, County + est_acute_beds_available ~ date, value.var = c('acute_census_str')))
+wide_acute_str
+```
+
+```{r}
+acute_time_series_long_f = acute_time_series_long %>%
+  mutate(excess_demand = paste0(pmax(0, acute_census_m - est_acute_beds_available), 
+                                ' [', pmax(0, acute_census_lb - est_acute_beds_available), ', ', 
+                                acute_census_ub - est_acute_beds_available, ']')) %>%
+  mutate(excess_demand = ifelse(acute_census_ub > est_acute_beds_available, excess_demand, NA))
+
+wide_acute_excess_demand = as.data.table(dcast(acute_time_series_long_f, County + est_acute_beds_available ~ date, value.var = c('excess_demand')))
+wide_acute_excess_demand
+```
+
+
+```{r}
+fwrite(wide_acute_str, 'data/wide_acute_str.csv')
+fwrite(wide_acute_excess_demand, 'data/wide_acute_excess_demand.csv')
 ```
 
