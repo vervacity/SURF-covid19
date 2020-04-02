@@ -22,6 +22,8 @@ library(reshape2)
 library(usmap)
 library(scales)
 
+source('state_county_request/county_utilization_map.R')
+
 df <- read.csv('data/county_age_severity_rates_v6.csv', stringsAsFactors = FALSE)
 df$County <- gsub('city', 'City', df$County)
 acute_beds_dt = fread('data/acute_byFIPS.csv')
@@ -32,7 +34,7 @@ county_case_history <- tryCatch(
   {read.csv("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv", stringsAsFactors = FALSE)},
   error = function(cond) {return(NA)})
 if (!is.na(county_case_history)) {
-  county_case_history <- county_case_history %>% mutate(fips = as.integer(fips), date = as.Date(date))
+  county_case_history <- county_case_history %>% mutate(fips = as.integer(fips), date = as.Date(date)) %>% mutate(county = paste(county, 'County'))
   county_cases <- left_join(county_case_history %>% group_by(fips) %>% summarize(date = max(date)), county_case_history) %>% 
     rename(FIPS = fips, Cases = cases) %>% select(FIPS, Cases)
   df <- left_join(df, county_cases, by = 'FIPS')
@@ -48,6 +50,12 @@ ui <- shinyUI(
 
   navbarPage("Projecting Severe Cases of COVID-19",
 
+             tabPanel("County Utilization (CA)",
+                        h4("Temporary (as of March 30, 2020)"),
+                        ggplotly(get_plot('Acute', 'v1'), tooltip = 'text'),
+                        ggplotly(get_plot('ICU', 'v2'), tooltip = 'text'),
+              ),
+
              tabPanel("Calculator",
                       sidebarPanel(
                         
@@ -62,8 +70,9 @@ ui <- shinyUI(
                                  radioButtons("input_radio", inline=TRUE, label = "Input:", choices = list("Confirmed Cases" = 1, "Hospitalizations" = 2), selected = 1),
                                  uiOutput("num_cases"),
                                  hr(),
-                                 HTML('Enter the <b>Doubling Time</b>, the number of days until the cumulative number of hospitalization/cases doubles.<br/><a href="https://www.nytimes.com/interactive/2020/03/21/upshot/coronavirus-deaths-by-country.html?action=click&module=Top%20Stories&pgtype=Homepage" target="_blank">(General range: 2-7 in the US)</a>'),
-                                 numericInput("doubling_time", NULL, value = NA, min = 1, max = 20),
+                                 # HTML('Enter the <b>Doubling Time</b>, the number of days until the cumulative number of hospitalization/cases doubles.<br/><a href="https://www.nytimes.com/interactive/2020/03/21/upshot/coronavirus-deaths-by-country.html?action=click&module=Top%20Stories&pgtype=Homepage" target="_blank">(General range: 2-7 in the US)</a>'),
+                                 # numericInput("doubling_time", NULL, value = NA, min = 1, max = 20),
+                                 uiOutput("doubling_time"),
                                  uiOutput("case_scaler"),
                                  hr(),
                                  sliderInput("num_days", "Number of Days to Model Ahead", 20, min = 1, max = 60),
@@ -305,7 +314,6 @@ server <- function(input, output, session) {
     }
   })
 
-  
   get_county_df <- reactive({
     state <- input$state1
     state_df <- df %>% filter(State == state)
@@ -355,6 +363,48 @@ server <- function(input, output, session) {
         sliderInput("case_scaler", label = NULL, 5, min = 1, max = 20) 
       )
     } 
+  })
+  
+  output$doubling_time <- renderUI({
+    req(input$state1)
+    
+    estimate_doubling_time <- function(case_numbers) {
+      if ((length(case_numbers) < 5) | (max(case_numbers) < 8)) {
+        return(NA)
+      } else if (rev(case_numbers)[1] < 2*case_numbers[1]) {
+        return(NA)
+      } else {
+        exponential_model <- lm(log(case_numbers)~ seq(1, length(case_numbers)))
+        dt <- log(2)/coef(exponential_model)[2]
+        if (!is.finite(dt)) {return(NA)}
+        if (dt > 20) {return(NA)}
+        return(dt)
+      }
+    }
+
+    if (!is.na(county_case_history)) {
+      if (!input$state_all_selector) {
+        cases <- (county_case_history %>% filter(state == input$state1, county %in% input$county1) %>% 
+                    group_by(date) %>% summarize(cases = sum(cases, na.rm = TRUE)))$cases
+      } else {
+        cases <- (county_case_history %>% filter(state == input$state1) %>% 
+                          group_by(date) %>% summarize(cases = sum(cases, na.rm = TRUE)))$cases
+      }
+      dt <- estimate_doubling_time(cases)
+      if (is.finite(dt)) {
+        list(HTML(paste0('Enter the <b>Doubling Time</b>, the number of days until the cumulative number of hospitalization/cases doubles.<br/>
+                <a href="https://www.nytimes.com/interactive/2020/03/21/upshot/coronavirus-deaths-by-country.html?action=click&module=Top%20Stories&pgtype=Homepage" target="_blank">(General range: 2-7 in the US)</a></br>
+                Our naive estimate for this area is ', round(dt, 2), ' days.</br>')),
+             numericInput("doubling_time", NULL, value = NA, min = 1, max = 20))
+      } else {
+        list(HTML('Enter the <b>Doubling Time</b>, the number of days until the cumulative number of hospitalization/cases doubles.<br/><a href="https://www.nytimes.com/interactive/2020/03/21/upshot/coronavirus-deaths-by-country.html?action=click&module=Top%20Stories&pgtype=Homepage" target="_blank">(General range: 2-7 in the US)</a>'),
+             numericInput("doubling_time", NULL, value = NA, min = 1, max = 20))
+      }
+    } else {
+      list(HTML('Enter the <b>Doubling Time</b>, the number of days until the cumulative number of hospitalization/cases doubles.<br/><a href="https://www.nytimes.com/interactive/2020/03/21/upshot/coronavirus-deaths-by-country.html?action=click&module=Top%20Stories&pgtype=Homepage" target="_blank">(General range: 2-7 in the US)</a>'),
+           numericInput("doubling_time", NULL, value = NA, min = 1, max = 20))
+    }
+
   })
   
   output$num_acute_beds <- renderUI({

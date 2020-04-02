@@ -18,7 +18,7 @@ ICU_LOS = 9
 ACUTE_LOS = 7
 
 get_df <- function(version = 'v1') { # version can be 'v1' or 'v2'
-  df <- read.csv('county_age_severity_rates_v6.csv', stringsAsFactors = FALSE)
+  df <- read.csv('data/county_age_severity_rates_v6.csv', stringsAsFactors = FALSE)
   df$County <- gsub('city', 'City', df$County)
   df = df %>% filter(State == "California") %>% group_by(FIPS, County) %>%
     summarise(
@@ -31,18 +31,18 @@ get_df <- function(version = 'v1') { # version can be 'v1' or 'v2'
   df = df %>% mutate(County = gsub(' County', '', County))
   
   if (version == 'v1') {
-    acute_beds_dt = fread('acute_byFIPS.csv')
-    icu_beds_dt = fread('icu_byFIPS.csv')
+    acute_beds_dt = fread('data/acute_byFIPS.csv')
+    icu_beds_dt = fread('data/icu_byFIPS.csv')
     bed_dt = merge(acute_beds_dt, icu_beds_dt, by = "FIPS")
     df_w_beds = merge(df, bed_dt, by="FIPS", all.x = TRUE)
     
-    hosp = fread('data/nigam_hospital_data_0330.csv')[,.(County, original_hosp = `COVID-19 Positive Patients March 30 2020`)]
+    hosp = fread('state_county_request/data/nigam_hospital_data_0330.csv')[,.(County, original_hosp = `COVID-19 Positive Patients March 30 2020`)]
     df_w_beds_hosp = as.data.table(merge(df_w_beds, hosp, by = 'County', all.x = TRUE))
   } else {
-    acute_beds_dt = fread('acute_byFIPS.csv')
+    acute_beds_dt = fread('data/acute_byFIPS.csv')
     df_w_beds = merge(df, acute_beds_dt, by = "FIPS")
 
-    hosp = fread('data/nigam_hospital_data_0330.csv')[,.(County, original_hosp = `COVID-19 Positive Patients March 30 2020`,
+    hosp = fread('state_county_request/data/nigam_hospital_data_0330.csv')[,.(County, original_hosp = `COVID-19 Positive Patients March 30 2020`,
                                                          num_icu_beds = `Available ICU beds March 30 2020`)]
     df_w_beds_hosp = as.data.table(merge(df_w_beds, hosp, by = 'County', all.x = TRUE))
   }
@@ -147,7 +147,3 @@ get_plot <- function(icu_or_acute, version = 'v1') { # icu_or_acute can be "ICU"
   
   return(p)
 }
-
-p <- get_plot('Acute', 'v1')
-ggplotly(p, tooltip = 'text')
-p
