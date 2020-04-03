@@ -214,6 +214,8 @@ ui <- shinyUI(
                           img(src = "email2.png", height = 17.5, width = 'auto'),
                           br(),
                           a(href="https://forms.gle/oQ5uQAEpm13iCmQo8", target = '_blank', "Comments and questions are welcomed!"),
+                          br(),
+                          a(href="https://docs.google.com/forms/d/e/1FAIpQLSfMR-isgITHIQZFfQ3nPNfiIHiVWJma3vS5eMw5E1KkeaNcjA/viewform", target = '_blank', "Let us know if you want to update the hospital bed counts"),
                           hr(),
                           strong("Created by:"), 
                           p("Johannes Opsahl Ferstad, Angela Gu, Raymond Ye Lee, Isha Thapa, Alejandro Martinez, Andy Shin, Joshua Salomon, Peter Glynn, Nigam Shah, Arnold Milstein, Kevin Schulman, David Scheinker"),
