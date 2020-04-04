@@ -28,7 +28,7 @@ get_df <- function(version = 'v1') { # version can be 'v1' or 'v2'
     mutate(
       wtd_prop_hosp_in_icu = wtd_critical_case_rate/(wtd_critical_case_rate+wtd_acute_case_rate)) %>%
     select(County, total_population, wtd_prop_hosp_in_icu)
-  df = df %>% mutate(County = gsub(' County', '', County))
+  df = df %>% mutate(County = gsub(' County', '', County)) %>% filter(County != 'San Luis Obispo County')
   
   if (version == 'v1') {
     acute_beds_dt = fread('data/acute_byFIPS.csv')
@@ -116,7 +116,7 @@ get_plot <- function(icu_or_acute, version = 'v1') { # icu_or_acute can be "ICU"
                        select(FIPS, num_icu_beds, icu_census, days_since_start_date) %>% rename(fips = FIPS)) 
     
   } else {
-    df <- data.table(long_dt %>% filter(acute_census >= 0.9*num_acute_beds) %>% 
+    df <- data.table(long_dt %>% filter(acute_census >= 0.9*0.5*num_acute_beds) %>% 
                  select(FIPS, num_acute_beds, acute_census, days_since_start_date) %>% rename(fips = FIPS)) 
   }
   df <- df[ , .SD[which.min(days_since_start_date)], by = fips]

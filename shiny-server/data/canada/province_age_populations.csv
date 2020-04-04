@@ -1,0 +1,118 @@
+"province","pruid","age_decade","pop"
+"Alberta",48,"0-9",551472
+"Alberta",48,"10-19",523272
+"Alberta",48,"20-29",600162
+"Alberta",48,"30-39",708472
+"Alberta",48,"40-49",595819
+"Alberta",48,"50-59",553824
+"Alberta",48,"60-69",456499
+"Alberta",48,"70-79",245980
+"Alberta",48,"80+",135816
+"British Columbia",59,"0-9",468921
+"British Columbia",59,"10-19",521779
+"British Columbia",59,"20-29",690552
+"British Columbia",59,"30-39",717836
+"British Columbia",59,"40-49",646413
+"British Columbia",59,"50-59",723713
+"British Columbia",59,"60-69",659506
+"British Columbia",59,"70-79",413294
+"British Columbia",59,"80+",229322
+"Manitoba",46,"0-9",174657
+"Manitoba",46,"10-19",172289
+"Manitoba",46,"20-29",195383
+"Manitoba",46,"30-39",190725
+"Manitoba",46,"40-49",167925
+"Manitoba",46,"50-59",172495
+"Manitoba",46,"60-69",150364
+"Manitoba",46,"70-79",91123
+"Manitoba",46,"80+",54504
+"New Brunswick",13,"0-9",72564
+"New Brunswick",13,"10-19",80500
+"New Brunswick",13,"20-29",86908
+"New Brunswick",13,"30-39",90537
+"New Brunswick",13,"40-49",100288
+"New Brunswick",13,"50-59",119296
+"New Brunswick",13,"60-69",115293
+"New Brunswick",13,"70-79",73855
+"New Brunswick",13,"80+",37586
+"Newfoundland and Labrador",10,"0-9",45270
+"Newfoundland and Labrador",10,"10-19",53238
+"Newfoundland and Labrador",10,"20-29",57016
+"Newfoundland and Labrador",10,"30-39",59064
+"Newfoundland and Labrador",10,"40-49",68657
+"Newfoundland and Labrador",10,"50-59",84145
+"Newfoundland and Labrador",10,"60-69",81344
+"Newfoundland and Labrador",10,"70-79",50674
+"Newfoundland and Labrador",10,"80+",22134
+"Northwest Territories",61,"0-9",6112
+"Northwest Territories",61,"10-19",5743
+"Northwest Territories",61,"20-29",6794
+"Northwest Territories",61,"30-39",7097
+"Northwest Territories",61,"40-49",6190
+"Northwest Territories",61,"50-59",6577
+"Northwest Territories",61,"60-69",4250
+"Northwest Territories",61,"70-79",1531
+"Northwest Territories",61,"80+",532
+"Nova Scotia",12,"0-9",89490
+"Nova Scotia",12,"10-19",98636
+"Nova Scotia",12,"20-29",124835
+"Nova Scotia",12,"30-39",116929
+"Nova Scotia",12,"40-49",118226
+"Nova Scotia",12,"50-59",146676
+"Nova Scotia",12,"60-69",139767
+"Nova Scotia",12,"70-79",90664
+"Nova Scotia",12,"80+",46172
+"Nunavut",62,"0-9",8537
+"Nunavut",62,"10-19",7078
+"Nunavut",62,"20-29",6325
+"Nunavut",62,"30-39",5781
+"Nunavut",62,"40-49",4419
+"Nunavut",62,"50-59",3997
+"Nunavut",62,"60-69",1770
+"Nunavut",62,"70-79",684
+"Nunavut",62,"80+",189
+"Ontario",35,"0-9",1492308
+"Ontario",35,"10-19",1649385
+"Ontario",35,"20-29",2085699
+"Ontario",35,"30-39",1975770
+"Ontario",35,"40-49",1856123
+"Ontario",35,"50-59",2059539
+"Ontario",35,"60-69",1716408
+"Ontario",35,"70-79",1088744
+"Ontario",35,"80+",642571
+"Prince Edward Island",11,"0-9",15761
+"Prince Edward Island",11,"10-19",17956
+"Prince Edward Island",11,"20-29",20432
+"Prince Edward Island",11,"30-39",18133
+"Prince Edward Island",11,"40-49",19831
+"Prince Edward Island",11,"50-59",22609
+"Prince Edward Island",11,"60-69",21273
+"Prince Edward Island",11,"70-79",14019
+"Prince Edward Island",11,"80+",6933
+"Quebec",24,"0-9",897086
+"Quebec",24,"10-19",866061
+"Quebec",24,"20-29",1066598
+"Quebec",24,"30-39",1115805
+"Quebec",24,"40-49",1087073
+"Quebec",24,"50-59",1207213
+"Quebec",24,"60-69",1124019
+"Quebec",24,"70-79",722944
+"Quebec",24,"80+",398166
+"Saskatchewan",47,"0-9",155592
+"Saskatchewan",47,"10-19",146266
+"Saskatchewan",47,"20-29",156246
+"Saskatchewan",47,"30-39",171056
+"Saskatchewan",47,"40-49",140743
+"Saskatchewan",47,"50-59",146169
+"Saskatchewan",47,"60-69",132823
+"Saskatchewan",47,"70-79",75305
+"Saskatchewan",47,"80+",50262
+"Yukon",60,"0-9",4757
+"Yukon",60,"10-19",4194
+"Yukon",60,"20-29",5222
+"Yukon",60,"30-39",6754
+"Yukon",60,"40-49",5708
+"Yukon",60,"50-59",6040
+"Yukon",60,"60-69",5179
+"Yukon",60,"70-79",2220
+"Yukon",60,"80+",780
