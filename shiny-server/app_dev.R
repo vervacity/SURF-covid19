@@ -40,8 +40,11 @@ ui <- shinyUI(
                                    1. the age distribution of the population by decade </br>
                                    2. the number of ICU and Acute Care beds </br>
                                    3. the current number of cases."),
-                                 
-                                 p("Click here for template."),
+                                 HTML('(<a href="https://drive.google.com/open?id=12GqAkOfW9OJeTococJQNMxYXGU5JEVuX" target="_blank">Template 1</a>,
+                                 <a href="https://drive.google.com/open?id=1poZOKYWXIxSTdx2fVX38xDskhHfmgPqX" target="_blank">Template 2</a>, 
+                                 <a href="https://drive.google.com/open?id=1f9FrW7kyJENET2J9nNwhfDDLRZahqbkE" target="_blank">Template 3</a>) </br>
+                                      Column names must be the same.'),
+                                 hr(),
                                  fileInput("files", "Upload CSVs:", multiple = TRUE),
                                  uiOutput("area_selector"),
                                  hr(),
@@ -259,7 +262,6 @@ server <- function(input, output, session) {
     )]
     
     df <- merge(df, cond_rates)
-    View(df)
     df
   })
   
