@@ -94,7 +94,7 @@ ui <- shinyUI(
                       mainPanel(
                         
                         tags$head(tags$style(".shiny-output-error{color: green;}")),
-                        HTML("<h3 style='color: red; font-weight: bold'> IN CONSTRUCTION </h3>"),
+                        HTML("<h3 style='color: red; font-weight: bold'> UNDER CONSTRUCTION </h3>"),
                         HTML("<h4 style='color: red;'> For United States predictions, visit <a href='https://surf.stanford.edu/covid-19-tools/covid-19/', target = '_blank'>here</a>.</h4>"),
                         div('These models are planning tools and not predictions. They are based on data from Stanford and several public sources. The tools include assumptions that are changing as more information becomes available and will continue to evolve.',
                             style = 'margin-bottom: 15px'),
