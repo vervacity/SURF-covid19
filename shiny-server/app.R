@@ -35,17 +35,14 @@ ui <- shinyUI(
                         
                         fluidRow(
                           column(12, 
-                                 HTML("Please upload <b> three </b> CSV files that contain information, for each area,
-                                   on the following: </br>
-                                   1. the age distribution of the population by decade </br>
-                                   2. the number of ICU and Acute Care beds </br>
-                                   3. the current number of cases."),
-                                 HTML('(<a href="https://drive.google.com/open?id=12GqAkOfW9OJeTococJQNMxYXGU5JEVuX" target="_blank">Template 1</a>,
-                                 <a href="https://drive.google.com/open?id=1poZOKYWXIxSTdx2fVX38xDskhHfmgPqX" target="_blank">Template 2</a>, 
-                                 <a href="https://drive.google.com/open?id=1f9FrW7kyJENET2J9nNwhfDDLRZahqbkE" target="_blank">Template 3</a>) </br>
-                                      Column names must be the same.'),
+                                 HTML("Please upload <b> three </b> CSV files that contain information, for each area, on the following: </br>
+                                 1. the age distribution of the population by decade (<a href='https://drive.google.com/open?id=12GqAkOfW9OJeTococJQNMxYXGU5JEVuX' target='_blank'>example</a>). </br>
+                                 2. the number of ICU and Acute Care beds (<a href='https://drive.google.com/open?id=1poZOKYWXIxSTdx2fVX38xDskhHfmgPqX' target='_blank'>example</a>). </br>
+                                 3. the current number of cases (<a href='https://drive.google.com/open?id=1Fse8h3jbez1oVTr9Y-lXjSw0G12ziZSA' target='_blank'>example</a>). </br>
+                                 <i> Column names must match the examples exactly</i>."),
+                                 radioButtons("csv_or_country", '', choices = c('Upload CSVs', 'Choose Example'), selected = 'Upload CSVs', inline = TRUE),
+                                 uiOutput("files"),
                                  hr(),
-                                 fileInput("files", "Upload CSVs:", multiple = TRUE),
                                  uiOutput("area_selector"),
                                  hr(),
                                  p('If available, input the number of cumulative COVID-19 hospitalizations.'),
@@ -97,7 +94,8 @@ ui <- shinyUI(
                       mainPanel(
                         
                         tags$head(tags$style(".shiny-output-error{color: green;}")),
-                        h3("IN CONSTRUCTION FOR OTHER COUNTRIES"),
+                        HTML("<h3 style='color: red; font-weight: bold'> IN CONSTRUCTION </h3>"),
+                        HTML("<h4 style='color: red;'> For United States predictions, visit <a href='https://surf.stanford.edu/covid-19-tools/covid-19/', target = '_blank'>here</a>.</h4>"),
                         div('These models are planning tools and not predictions. They are based on data from Stanford and several public sources. The tools include assumptions that are changing as more information becomes available and will continue to evolve.',
                             style = 'margin-bottom: 15px'),
                         hr(),
@@ -246,10 +244,16 @@ ui <- shinyUI(
 
 server <- function(input, output, session) {
 
-  get_df <- eventReactive(input$files, {
-    df <- read.csv(input$files[[1, 'datapath']])
-    df <- merge(df, read.csv(input$files[[2, 'datapath']]))
-    df <- merge(df, read.csv(input$files[[3, 'datapath']]))
+  get_df <- reactive({
+    if (input$csv_or_country == 'Upload CSVs') {
+      df <- read.csv(input$files[[1, 'datapath']])
+      df <- merge(df, read.csv(input$files[[2, 'datapath']]))
+      df <- merge(df, read.csv(input$files[[3, 'datapath']]))
+    } else {
+      df <- read.csv(paste0('data/', input$country, '/age_distribution.csv'), stringsAsFactors = FALSE)
+      df <- merge(df, read.csv(paste0('data/', input$country, '/beds.csv'), stringsAsFactors = FALSE))
+      df <- merge(df, read.csv(paste0('data/', input$country, '/cases.csv'), stringsAsFactors = FALSE))
+    }
     
     cond_rates = fread('data/imperial_rates.csv')
     
@@ -266,8 +270,11 @@ server <- function(input, output, session) {
   })
   
   output$area_selector <- renderUI({#creates area select box object called in ui
-    
-    req(input$files)
+    if (input$csv_or_country == 'Upload CSVs') {
+      req(input$files)
+    } else {
+      req(input$country)
+    }
 
     df <- get_df()
     selectInput(inputId = "area",
@@ -278,29 +285,36 @@ server <- function(input, output, session) {
   })
 
   get_area_df <- reactive({
-    req(input$files)
+    
     return(get_df() %>% filter(area %in% input$area))
   })
 
+  output$files <- renderUI({
+    if (input$csv_or_country == 'Upload CSVs') {
+      fileInput('files', '', multiple = TRUE)
+    } else {
+      selectInput('country', '', choices = c('Canada', 'Israel'))
+    }
+  })
+
   output$num_cases <- renderUI({
-    req(input$files)
-    
-    if (is.null(input$files) & input$input_radio == 1) {
-      list(
-        HTML('<b>Cumulative Confirmed Cases</b>'),
-        numericInput("num_cases", label=NULL, 0, min = 1))
-    } else if (input$input_radio == 1) {
-      num_cases <- sum((get_area_df() %>% group_by(area) %>% summarize(num_cases = max(Cases)) %>% filter(is.finite(num_cases)))$num_cases)
+    if (input$csv_or_country == 'Upload CSVs') {
+      req(input$files)
+    } else {
+      req(input$country)
+    }
+
+    if (input$input_radio == 1) {
+      num_cases <- sum((get_area_df() %>% group_by(area) %>% summarize(num_cases = max(cases)) %>% filter(is.finite(num_cases)))$num_cases)
       if (!is.finite(num_cases)) {num_cases <- 0}
       num_cases <- max(num_cases, 0)
       list(
         HTML('<b>Cumulative Confirmed Cases</b>'),
         numericInput("num_cases",  label=NULL, num_cases, min = 1))
-    } else if (is.null(input$files) & input$input_radio == 2) {
-      numericInput("num_cases", "Cumulative Hospitalizations (as of today)", 1, min = 1)
     } else {
       numericInput("num_cases", "Cumulative Hospitalizations (as of today)", 0, min = 1)
     }
+
   })
   
   output$case_scaler <- renderUI({
@@ -318,7 +332,12 @@ server <- function(input, output, session) {
   })
 
   output$num_acute_beds <- renderUI({
-    req(input$files)
+    if (input$csv_or_country == 'Upload CSVs') {
+      req(input$files)
+    } else {
+      req(input$country)
+    }
+    
     num_acute_beds = sum((get_area_df() %>%
       group_by(area) %>%
       summarize(
@@ -332,7 +351,11 @@ server <- function(input, output, session) {
   })
 
   output$num_icu_beds <- renderUI({
-    req(input$files)
+    if (input$csv_or_country == 'Upload CSVs') {
+      req(input$files)
+    } else {
+      req(input$country)
+    }
     num_icu_beds = sum((get_area_df() %>%
                             group_by(area) %>%
                             summarize(
@@ -346,13 +369,15 @@ server <- function(input, output, session) {
   })
 
   observeEvent(input$reset, {
-    if (!is.na(area_case_history)) {
-      num_cases <- sum((get_area_df() %>% group_by(area) %>% summarize(num_cases = max(Cases)) %>% filter(is.finite(num_cases)))$num_cases)
-      if (!is.finite(num_cases)) {num_cases <- 0}
-      num_cases <- max(num_cases, 0)
+    if (input$csv_or_country == 'Upload CSVs') {
+      req(input$files)
     } else {
-      num_cases <- 0
+      req(input$country)
     }
+    
+    num_cases <- sum((get_area_df() %>% group_by(area) %>% summarize(num_cases = max(cases)) %>% filter(is.finite(num_cases)))$num_cases)
+    if (!is.finite(num_cases)) {num_cases <- 0}
+    num_cases <- max(num_cases, 0)
 
     if (input$input_radio == 1) {
       updateNumericInput(session, "num_cases", value = num_cases)
@@ -360,6 +385,7 @@ server <- function(input, output, session) {
     } else {
       updateNumericInput(session, "num_cases", value = 0)
     }
+    
     updateRadioButtons(session, "input_radio", selected = 1)
     updateSliderInput(session, "num_days", value = 20)
     updateNumericInput(session, "los_severe", value = 12)
@@ -450,7 +476,11 @@ server <- function(input, output, session) {
   })
 
   output$text1 <- renderText({
-    req(input$files)
+    if (input$csv_or_country == 'Upload CSVs') {
+      req(input$files)
+    } else {
+      req(input$country)
+    }
     
     if(!is.finite(input$doubling_time)) {
       return("<span style='color: red;'>Enter a Doubling Time on the left to generate a forecast</span>")
@@ -582,7 +612,11 @@ server <- function(input, output, session) {
 
   output$table1 <- renderTable({
 
-    req(input$files)
+    if (input$csv_or_country == 'Upload CSVs') {
+      req(input$files)
+    } else {
+      req(input$country)
+    }
 
     area_df <- get_area_df()
 
@@ -655,7 +689,11 @@ server <- function(input, output, session) {
   }
 
   get_case_numbers <- reactive({
-    req(input$files)
+    if (input$csv_or_country == 'Upload CSVs') {
+      req(input$files)
+    } else {
+      req(input$country)
+    }
 
     naive_estimations <- get_naive_estimations()
 
@@ -733,7 +771,11 @@ server <- function(input, output, session) {
 
   # Function to get data table with time series of cases (used for both graphical and tabular representation)
   get_time_series_dt <- reactive({
-    req(input$files)
+    if (input$csv_or_country == 'Upload CSVs') {
+      req(input$files)
+    } else {
+      req(input$country)
+    }
     req(input$doubling_time)
 
     case_numbers <- get_case_numbers()
@@ -775,7 +817,11 @@ server <- function(input, output, session) {
   )
 
   output$plot1 <- renderPlotly({
-    req(input$files)
+    if (input$csv_or_country == 'Upload CSVs') {
+      req(input$files)
+    } else {
+      req(input$country)
+    }
     req(input$doubling_time)
 
     num_acute_beds_available = input$total_acute_beds
