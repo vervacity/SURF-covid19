@@ -28,6 +28,9 @@ acute_beds_dt = fread('data/acute_byFIPS.csv')
 icu_beds_dt = fread('data/icu_byFIPS.csv')
 bed_dt = merge(acute_beds_dt, icu_beds_dt, by = "FIPS")
 
+days_before_today = 14
+
+
 county_case_history <- tryCatch(
   {read.csv("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv", stringsAsFactors = FALSE)},
   error = function(cond) {return(NA)})
@@ -39,6 +42,7 @@ if (!is.na(county_case_history)) {
 }
 
 df <- left_join(df, bed_dt, by = 'FIPS')
+
 
 ui <- shinyUI(
   list(
@@ -680,29 +684,27 @@ server <- function(input, output, session) {
   
   # Function to get hospitalizations from cumulative cases, with projection backwards from current cases to prevent jump at day LOS
   get_hospitalizations = function(cumulative_cases, los, doubling_time) {
-      
-      days_to_hospitalization = 0
-      
-      # project back los + days to hospitalization days
-      back_vec = c(rep(NA, los + days_to_hospitalization), cumulative_cases)
-      for (i in (los + days_to_hospitalization):1) {
+      # project back los + days before today days
+      # since each day before today needs something to subtract off for los
+      back_vec = c(rep(NA, los + days_before_today), cumulative_cases)
+      for (i in (los + days_before_today):1) {
           back_vec[i] = back_vec[i + 1]/2^(1/doubling_time)
       }
       
       # get indices of original vectors
-      original_start = los + days_to_hospitalization + 1
-      original_end = los + days_to_hospitalization + length(cumulative_cases)
+      original_start = los + days_before_today + 1
+      original_end = los + days_before_today + length(cumulative_cases)
       stopifnot(all.equal(back_vec[original_start:original_end], cumulative_cases))
       stopifnot(length(back_vec) == original_end)
       
-      # get indices of vectors shifted by days to hospitalization
-      shifted_start = original_start - days_to_hospitalization
-      shifted_end = original_end - days_to_hospitalization
+      # get indices of vectors shifted by days before today
+      shifted_start = original_start - days_before_today
+      # shifted_end = original_end - days_before_today
       
       # subtract off for length of stay
-      return_vec = back_vec[shifted_start:shifted_end] - back_vec[(shifted_start - los):(shifted_end - los)]
+      return_vec = back_vec[shifted_start:original_end] - back_vec[(shifted_start - los):(original_end - los)]
       
-      return(list(result = return_vec, back_vec = back_vec[1:los]))
+      return(list(result = return_vec, back_vec = back_vec[1:los + days_before_today]))
   }
   
   get_case_numbers <- reactive({
@@ -727,10 +729,9 @@ server <- function(input, output, session) {
     }
     
     # number hospitalized at any one time (without intervention)
-    #critical_without_intervention = critical_without_intervention - c(rep(0, input$los_critical), critical_without_intervention)[1:length(critical_without_intervention)]
     critical_hospitalizations_obj = get_hospitalizations(critical_without_intervention, input$los_critical, doubling_time)
     critical_without_intervention = critical_hospitalizations_obj$result
-    #severe_without_intervention = severe_without_intervention - c(rep(0, input$los_severe), severe_without_intervention)[1:length(severe_without_intervention)]
+
     severe_hospitalizations_obj = get_hospitalizations(severe_without_intervention, input$los_severe, doubling_time)
     severe_without_intervention = severe_hospitalizations_obj$result
     
@@ -756,17 +757,12 @@ server <- function(input, output, session) {
     
     # no backwards projection here; tack on back_vec from before and subtract accordingly
     critical_cases = c(critical_back_vec, critical_cases)
-    critical_cases = critical_cases[(input$los_critical + 1):(input$los_critical + num_days + 1)] - critical_cases[1:(num_days + 1)]
+    critical_cases = critical_cases[(input$los_critical + 1):(input$los_critical + days_before_today + num_days + 1)] - critical_cases[1:(days_before_today + num_days + 1)]
     
     severe_cases = c(severe_back_vec, severe_cases)
-    severe_cases = severe_cases[(input$los_severe + 1):(input$los_severe + num_days + 1)] - severe_cases[1:(num_days + 1)]
-    
-    # number hospitalized at any one time (with intervention)
-    # critical_cases = critical_cases - c(rep(0, input$los_critical), critical_cases)[1:length(critical_cases)]
-    # critical_cases = get_hospitalizations(critical_cases, input$los_critical, doubling_time)$result
-    # severe_cases = severe_cases - c(rep(0, input$los_severe), severe_cases)[1:length(severe_cases)]
-    # severe_cases = get_hospitalizations(severe_cases, input$los_severe, doubling_time)$result
-    
+    severe_cases = severe_cases[(input$los_severe + 1):(input$los_severe + days_before_today + num_days + 1)] - severe_cases[1:(days_before_today + num_days + 1)]
+
+
     total_population <- naive_estimations$total_population
     validate(
       need(input$num_cases != 0, "To run the model enter a non-zero number of cases."),
@@ -791,10 +787,48 @@ server <- function(input, output, session) {
     case_numbers <- get_case_numbers()
     
     num_days <- input$num_days
-    day_list <- c(0:num_days)
+    day_list <- (0 - days_before_today):num_days
+    dates_of_interest = Sys.Date() + day_list
     
+    # get all fips for all counties for which we need death counts
+    tmp_name_fips_crosswalk <- df %>% filter(State == input$state1) %>% distinct(FIPS, County)
+    
+    if (!input$state_all_selector) {
+        tmp_name_fips_crosswalk = tmp_name_fips_crosswalk %>% filter(County %in% input$county1)
+    }
+
+    fips_of_interest = tmp_name_fips_crosswalk %>% pull(FIPS)
+    
+    # expand grid to get entire series of dates for each county
+    county_date_pairs = expand.grid(fips = fips_of_interest, date = dates_of_interest)
+    
+    # get deaths per day for area of interest
+    tmp_death_data = county_case_history %>% 
+        select(fips, date, deaths) %>%
+        # 1 filter death count data for counties of interest
+        filter(fips %in% fips_of_interest) %>%
+        # 2 filter for dates of interest (subset of dates to plot)
+        filter(date %in% dates_of_interest) %>%
+        # 3 merge with county_date_pairs to get all dates
+        right_join(county_date_pairs, by = c('fips', 'date')) %>%
+        # 4 missing dates are those not in nytimes, replace with 0
+        mutate(deaths = ifelse(is.na(deaths), 0, deaths)) %>%
+        # 5 subtract off previous day to get deaths per day
+        mutate(deaths = ifelse(date < Sys.Date(), deaths - lag(deaths, default = 0), 0)) %>%
+        # 6 collapse to get total deaths by date
+        group_by(date) %>%
+        summarise(deaths = sum(deaths)) %>%
+        ungroup %>%
+        arrange(date) %>% 
+        mutate(deaths = as.character(deaths)) %>%
+        mutate(deaths = ifelse(date >= Sys.Date(), '', deaths))
+    
+    stopifnot(all.equal(tmp_death_data$date, dates_of_interest))
+
+    # get chart data
     chart_data = data.table(
-      Date = Sys.Date() + day_list,
+      Date = dates_of_interest,
+      `Reported Deaths` = tmp_death_data$deaths,
       `Estimated<br />Acute Hospitalizations<br />(without intervention)` = round(case_numbers$severe_without_intervention),
       `Estimated<br />ICU Hospitalizations<br />(without intervention)` = round(case_numbers$critical_without_intervention)
     )
@@ -813,7 +847,7 @@ server <- function(input, output, session) {
     chart_data
   })
   
-  output$table2 <- renderTable({ copy(get_time_series_dt())[,Date:=as.character(Date)] }, sanitize.text.function=identity, width = "100%", digits = 0)
+  output$table2 <- renderTable({copy(get_time_series_dt())[,Date:=as.character(Date)]}, sanitize.text.function=identity, width = "100%", digits = 0)
   
   output$downloadData <- downloadHandler(
     
@@ -837,15 +871,27 @@ server <- function(input, output, session) {
     num_days <- input$num_days
     y_axis <- 'Cases'
     
-    chart_data = melt(get_time_series_dt(), id.vars = c('Date'))
+    time_series_df = get_time_series_dt()
+
+    # split hospitalizations and death data to plot separately
+    chart_data_deaths = time_series_df[, c(1, 2)]
+    names(chart_data_deaths) = c('Date', 'value')
+    chart_data_deaths$variable = as.factor('Reported Deaths')
+    chart_data_deaths$value = as.numeric(chart_data_deaths$value)
     
-    ymax = chart_data[,max(value)]
+    time_series_df[[2]] = NULL
+    chart_data = melt(time_series_df, id.vars = c('Date'))
+    
+    ymax = chart_data[,max(value, na.rm = TRUE)]
 
     gp = ggplot(chart_data,
                 aes(x=Date, y=value, group=variable, text = sprintf("Date:  %s \n cases: %i", Date, value))) +
       geom_line(aes(linetype = variable, color = variable)) +  guides(linetype=FALSE) + guides(size=FALSE) +
       scale_color_manual(values=c("dodgerblue", "red", "black")) +
       scale_linetype_manual(values=c("solid", "solid", "solid")) +
+      geom_point(data = chart_data_deaths, mapping = aes(x=Date, y=value), shape = 17, colour = 'red') +
+      geom_vline(xintercept = as.numeric(Sys.Date()), color = 'black', linetype = 'dotted') +
+      annotate("text", x = Sys.Date(), y = ymax, size = 3, color = 'black', label = "Today") + 
       theme_minimal() +
       ylab("Number of cases") + xlab('Date')  +
       coord_cartesian(ylim=c(0, ymax)) +
