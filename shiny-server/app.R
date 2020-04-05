@@ -165,7 +165,7 @@ ui <- shinyUI(
                           br(),
                           # a(href="https://www.thelancet.com/journals/lanres/article/PIIS2213-2600(20)30079-5/fulltext", target = '_blank', "[5] 9.5 days from symptom onset to ICU admission"),
                           # br(),
-                          a(href="https://github.com/nytimes/covid-19-data", target = '_blank', "[5] Default values of cases by area"),
+                          a(href="https://github.com/CSSEGISandData/COVID-19/blob/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv", target = '_blank', "[5] Default values of cases by area"),
                           br(),
                           a(href="https://science.sciencemag.org/content/early/2020/03/13/science.abb3221.long", target = '_blank', "[6] Estimated 86% (95% CI: [82% - 90%]) of infections went undocumented within China prior to travel restrictions"),
                           br(),
@@ -243,7 +243,29 @@ ui <- shinyUI(
 ))
 
 server <- function(input, output, session) {
-
+  
+  get_cases <- function(country) {
+    case_history <- tryCatch(
+      {read.csv("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv", stringsAsFactors = FALSE)},
+      error = function(cond) {return(NA)})
+    
+    if (!is.na(case_history)) {
+      case_history <- case_history %>% filter(Country.Region == country, Province.State != 'Recovered', !grepl('Princess', Province.State))
+      cases <- case_history[, c(1, 2, ncol(case_history))]
+      if (nrow(cases) == 0) {
+        return(NA)
+      } else if (nrow(cases) == 1) {
+        cases <- cases[, c(2, 3)]
+        names(cases) = c('area', 'cases')
+      } else {
+        cases <- cases[, c(1, 3)]
+        names(cases) = c('area', 'cases')
+      }
+      write.csv(cases, paste0('data/', country, '/cases.csv'), row.names = FALSE)
+      return(cases)
+    }
+  }
+  
   get_df <- reactive({
     if (input$csv_or_country == 'Upload CSVs') {
       df <- read.csv(input$files[[1, 'datapath']])
@@ -252,7 +274,9 @@ server <- function(input, output, session) {
     } else {
       df <- read.csv(paste0('data/', input$country, '/age_distribution.csv'), stringsAsFactors = FALSE)
       df <- merge(df, read.csv(paste0('data/', input$country, '/beds.csv'), stringsAsFactors = FALSE))
-      df <- merge(df, read.csv(paste0('data/', input$country, '/cases.csv'), stringsAsFactors = FALSE))
+      
+      cases <- get_cases(input$country)
+      df <- merge(df, cases)
     }
     
     cond_rates = fread('data/imperial_rates.csv')
@@ -308,9 +332,16 @@ server <- function(input, output, session) {
       num_cases <- sum((get_area_df() %>% group_by(area) %>% summarize(num_cases = max(cases)) %>% filter(is.finite(num_cases)))$num_cases)
       if (!is.finite(num_cases)) {num_cases <- 0}
       num_cases <- max(num_cases, 0)
-      list(
-        HTML('<b>Cumulative Confirmed Cases</b>'),
-        numericInput("num_cases",  label=NULL, num_cases, min = 1))
+      if (input$csv_or_country == 'Choose Example') {
+        list(
+          HTML("<b>Cumulative Confirmed Cases</b>
+          (<a href='https://github.com/CSSEGISandData/COVID-19/blob/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv' target = '_blank'>source</a>)"),
+          numericInput("num_cases",  label=NULL, num_cases, min = 1))
+      } else {
+        list(
+          HTML('<b>Cumulative Confirmed Cases</b>'),
+          numericInput("num_cases",  label=NULL, num_cases, min = 1))
+      }
     } else {
       numericInput("num_cases", "Cumulative Hospitalizations (as of today)", 0, min = 1)
     }

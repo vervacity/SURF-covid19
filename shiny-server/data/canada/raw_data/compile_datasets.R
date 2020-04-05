@@ -30,8 +30,7 @@ canada_case_history <- tryCatch(
 if (!is.na(canada_case_history)) {
   canada_case_history <- data.table(canada_case_history %>% mutate(date = as.Date(date, "%d-%m-%y")) %>% 
                                       select(province = prname, date, Cases = numconf))
-  cases <- (canada_case_history[ , .SD[which.max(date)], by = province])[, c('province', 'Cases')]
-  canada_df <- left_join(canada_df, cases, by = 'province')
+  cases <- (canada_case_history[ , .SD[which.max(date)], by = province])[, c('province', 'cases')]
 }
 
 View(canada_df)
