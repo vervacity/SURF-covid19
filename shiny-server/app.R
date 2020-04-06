@@ -703,8 +703,8 @@ server <- function(input, output, session) {
       
       # subtract off for length of stay
       return_vec = back_vec[shifted_start:original_end] - back_vec[(shifted_start - los):(original_end - los)]
-      
-      return(list(result = return_vec, back_vec = back_vec[1:los + days_before_today]))
+
+      return(list(result = return_vec, back_vec = back_vec[1:(los + days_before_today)]))
   }
   
   get_case_numbers <- reactive({
@@ -762,7 +762,6 @@ server <- function(input, output, session) {
     severe_cases = c(severe_back_vec, severe_cases)
     severe_cases = severe_cases[(input$los_severe + 1):(input$los_severe + days_before_today + num_days + 1)] - severe_cases[1:(days_before_today + num_days + 1)]
 
-
     total_population <- naive_estimations$total_population
     validate(
       need(input$num_cases != 0, "To run the model enter a non-zero number of cases."),
@@ -814,12 +813,14 @@ server <- function(input, output, session) {
         # 4 missing dates are those not in nytimes, replace with 0
         mutate(deaths = ifelse(is.na(deaths), 0, deaths)) %>%
         # 5 subtract off previous day to get deaths per day
+        arrange(fips, date) %>%
+        group_by(fips) %>%
         mutate(deaths = ifelse(date < Sys.Date(), deaths - lag(deaths, default = 0), 0)) %>%
-        # 6 collapse to get total deaths by date
-        group_by(date) %>%
+        ungroup %>% group_by(date) %>%
         summarise(deaths = sum(deaths)) %>%
         ungroup %>%
-        arrange(date) %>% 
+        # 7 arrange by date and replace deaths with characters for table display
+        arrange(date) %>%
         mutate(deaths = as.character(deaths)) %>%
         mutate(deaths = ifelse(date >= Sys.Date(), '', deaths))
     
@@ -889,7 +890,7 @@ server <- function(input, output, session) {
       geom_line(aes(linetype = variable, color = variable)) +  guides(linetype=FALSE) + guides(size=FALSE) +
       scale_color_manual(values=c("dodgerblue", "red", "black")) +
       scale_linetype_manual(values=c("solid", "solid", "solid")) +
-      geom_point(data = chart_data_deaths, mapping = aes(x=Date, y=value), shape = 17, colour = 'red') +
+      geom_point(data = chart_data_deaths, shape = '+', color = 'purple', aes(y = value)) +
       geom_vline(xintercept = as.numeric(Sys.Date()), color = 'black', linetype = 'dotted') +
       annotate("text", x = Sys.Date(), y = ymax, size = 3, color = 'black', label = "Today") + 
       theme_minimal() +
@@ -901,7 +902,7 @@ server <- function(input, output, session) {
     if (is.finite(input$day_change_1) & input$day_change_1 > 0 & is.finite(input$double_change_1) & input$double_change_1 > 0) {
       dt_changes = get_dt_changes()
       days <- dt_changes[c(FALSE, TRUE)]
-      
+
       gp = gp + scale_color_manual(values=c("dodgerblue", "red", "dodgerblue", "red")) +
         scale_linetype_manual(values=c("dashed", "dashed", "solid", "solid"))
       
@@ -937,7 +938,6 @@ server <- function(input, output, session) {
         xaxis=list(fixedrange=TRUE),
         yaxis=list(fixedrange=TRUE)) %>% 
       config(displayModeBar = F)
-    
   })
   
   output$plot2 <- renderPlotly({
