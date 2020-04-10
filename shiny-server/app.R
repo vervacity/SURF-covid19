@@ -28,12 +28,12 @@ acute_beds_dt = fread('data/acute_byFIPS.csv')
 icu_beds_dt = fread('data/icu_byFIPS.csv')
 bed_dt = merge(acute_beds_dt, icu_beds_dt, by = "FIPS")
 
-days_before_today = 14
-
-
 county_case_history <- tryCatch(
   {read.csv("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv", stringsAsFactors = FALSE)},
   error = function(cond) {return(NA)})
+
+todays_date = max(ymd(county_case_history$date)) + 1
+
 if (!is.na(county_case_history)) {
   county_case_history <- county_case_history %>% mutate(fips = as.integer(fips), date = as.Date(date))
   county_cases <- left_join(county_case_history %>% group_by(fips) %>% summarize(date = max(date)), county_case_history) %>% 
@@ -70,6 +70,7 @@ ui <- shinyUI(
                                  numericInput("doubling_time", NULL, value = NA, min = 1, max = 20),
                                  uiOutput("case_scaler"),
                                  hr(),
+                                 sliderInput("days_before_today", "Number of Past Days to Model", 0, min = 0, max = 30),
                                  sliderInput("num_days", "Number of Days to Model Ahead", 20, min = 1, max = 60),
                                  hr(),
                                  h4("Simulation of Intervention"),
@@ -686,25 +687,25 @@ server <- function(input, output, session) {
   get_hospitalizations = function(cumulative_cases, los, doubling_time) {
       # project back los + days before today days
       # since each day before today needs something to subtract off for los
-      back_vec = c(rep(NA, los + days_before_today), cumulative_cases)
-      for (i in (los + days_before_today):1) {
+      back_vec = c(rep(NA, los + input$days_before_today), cumulative_cases)
+      for (i in (los + input$days_before_today):1) {
           back_vec[i] = back_vec[i + 1]/2^(1/doubling_time)
       }
       
       # get indices of original vectors
-      original_start = los + days_before_today + 1
-      original_end = los + days_before_today + length(cumulative_cases)
+      original_start = los + input$days_before_today + 1
+      original_end = los + input$days_before_today + length(cumulative_cases)
       stopifnot(all.equal(back_vec[original_start:original_end], cumulative_cases))
       stopifnot(length(back_vec) == original_end)
       
       # get indices of vectors shifted by days before today
-      shifted_start = original_start - days_before_today
-      # shifted_end = original_end - days_before_today
+      shifted_start = original_start - input$days_before_today
+      # shifted_end = original_end - input$days_before_today
       
       # subtract off for length of stay
       return_vec = back_vec[shifted_start:original_end] - back_vec[(shifted_start - los):(original_end - los)]
 
-      return(list(result = return_vec, back_vec = back_vec[1:(los + days_before_today)]))
+      return(list(result = return_vec, back_vec = back_vec[1:(los + input$days_before_today)]))
   }
   
   get_case_numbers <- reactive({
@@ -757,10 +758,10 @@ server <- function(input, output, session) {
     
     # no backwards projection here; tack on back_vec from before and subtract accordingly
     critical_cases = c(critical_back_vec, critical_cases)
-    critical_cases = critical_cases[(input$los_critical + 1):(input$los_critical + days_before_today + num_days + 1)] - critical_cases[1:(days_before_today + num_days + 1)]
+    critical_cases = critical_cases[(input$los_critical + 1):(input$los_critical + input$days_before_today + num_days + 1)] - critical_cases[1:(input$days_before_today + num_days + 1)]
     
     severe_cases = c(severe_back_vec, severe_cases)
-    severe_cases = severe_cases[(input$los_severe + 1):(input$los_severe + days_before_today + num_days + 1)] - severe_cases[1:(days_before_today + num_days + 1)]
+    severe_cases = severe_cases[(input$los_severe + 1):(input$los_severe + input$days_before_today + num_days + 1)] - severe_cases[1:(input$days_before_today + num_days + 1)]
 
     total_population <- naive_estimations$total_population
     validate(
@@ -786,8 +787,8 @@ server <- function(input, output, session) {
     case_numbers <- get_case_numbers()
     
     num_days <- input$num_days
-    day_list <- (0 - days_before_today):num_days
-    dates_of_interest = Sys.Date() + day_list
+    day_list <- (0 - input$days_before_today):num_days
+    dates_of_interest = todays_date + day_list
     
     # get all fips for all counties for which we need death counts
     tmp_name_fips_crosswalk <- df %>% filter(State == input$state1) %>% distinct(FIPS, County)
@@ -815,14 +816,14 @@ server <- function(input, output, session) {
         # 5 subtract off previous day to get deaths per day
         arrange(fips, date) %>%
         group_by(fips) %>%
-        mutate(deaths = ifelse(date < Sys.Date(), deaths - lag(deaths, default = 0), 0)) %>%
+        mutate(deaths = ifelse(date < todays_date, deaths - lag(deaths, default = 0), 0)) %>%
         ungroup %>% group_by(date) %>%
         summarise(deaths = sum(deaths)) %>%
         ungroup %>%
         # 7 arrange by date and replace deaths with characters for table display
         arrange(date) %>%
         mutate(deaths = as.character(deaths)) %>%
-        mutate(deaths = ifelse(date >= Sys.Date(), '', deaths))
+        mutate(deaths = ifelse(date >= todays_date, '', deaths))
     
     stopifnot(all.equal(tmp_death_data$date, dates_of_interest))
 
@@ -888,11 +889,11 @@ server <- function(input, output, session) {
     gp = ggplot(chart_data,
                 aes(x=Date, y=value, group=variable, text = sprintf("Date:  %s \n cases: %i", Date, value))) +
       geom_line(aes(linetype = variable, color = variable)) +  guides(linetype=FALSE) + guides(size=FALSE) +
-      scale_color_manual(values=c("dodgerblue", "red", "black")) +
-      scale_linetype_manual(values=c("solid", "solid", "solid")) +
+      scale_color_manual(values=c("dodgerblue", "red", "black", 'purple')) +
+      scale_linetype_manual(values=c("solid", "solid", "solid", NA)) +
       geom_point(data = chart_data_deaths, shape = '+', color = 'purple', aes(y = value)) +
-      geom_vline(xintercept = as.numeric(Sys.Date()), color = 'black', linetype = 'dotted') +
-      annotate("text", x = Sys.Date(), y = ymax, size = 3, color = 'black', label = "Today") + 
+      geom_vline(xintercept = as.numeric(todays_date), color = 'black', linetype = 'dotted') +
+      annotate("text", x = todays_date, y = ymax, size = 3, color = 'black', label = "Today") + 
       theme_minimal() +
       ylab("Number of cases") + xlab('Date')  +
       coord_cartesian(ylim=c(0, ymax)) +
@@ -908,8 +909,8 @@ server <- function(input, output, session) {
       
       for (i in days) {
         gp = gp +
-          geom_vline(xintercept = as.numeric(Sys.Date() + i), color = 'grey', linetype = 'dotted') +
-          annotate("text", x = Sys.Date() + i, y = ymax, size = 3, color = 'gray35',
+          geom_vline(xintercept = as.numeric(todays_date + i), color = 'grey', linetype = 'dotted') +
+          annotate("text", x = todays_date + i, y = ymax, size = 3, color = 'gray35',
                    label = "Intervention")
       }
     }
@@ -917,19 +918,19 @@ server <- function(input, output, session) {
     # if(is.finite(num_total_beds_available)) {
     #   gp = gp +
     #     geom_hline(yintercept = num_total_beds_available, linetype = "dashed", color = 'grey') + 
-    #     annotate("text", x = Sys.Date() + 0.75*num_days, y = num_total_beds_available*1.02, label = "Total Beds for COVID Patients", vjust=1, hjust=0, size = 3, color = 'gray35')
+    #     annotate("text", x = todays_date + 0.75*num_days, y = num_total_beds_available*1.02, label = "Total Beds for COVID Patients", vjust=1, hjust=0, size = 3, color = 'gray35')
     # }
     
     if(is.finite(num_acute_beds_available)) {
       gp = gp +
         geom_hline(yintercept = num_acute_beds_available, linetype = "dashed", color = 'grey') + 
-        annotate("text", x = Sys.Date() + 0.75*num_days, y = num_acute_beds_available*1.02, label = "Acute Beds for COVID Patients", vjust=1, hjust=0, size = 3, color = 'gray35')
+        annotate("text", x = todays_date + 0.75*num_days, y = num_acute_beds_available*1.02, label = "Acute Beds for COVID Patients", vjust=1, hjust=0, size = 3, color = 'gray35')
     }
     
     if(is.finite(num_icu_beds_available)) {
       gp = gp +
         geom_hline(yintercept = num_icu_beds_available, linetype = "dashed", color = 'grey') + 
-        annotate("text", x = Sys.Date() + 0.75*num_days, y = num_icu_beds_available*1.02, label = "ICU Beds for COVID Patients", vjust=1, hjust=0, size = 3, color = 'gray35')
+        annotate("text", x = todays_date + 0.75*num_days, y = num_icu_beds_available*1.02, label = "ICU Beds for COVID Patients", vjust=1, hjust=0, size = 3, color = 'gray35')
     }
     
     ggplotly(gp, tooltip = 'text', height = 640) %>% 
