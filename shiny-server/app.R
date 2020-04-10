@@ -787,7 +787,7 @@ server <- function(input, output, session) {
     case_numbers <- get_case_numbers()
     
     num_days <- input$num_days
-    day_list <- (0 - input$days_before_today):num_days
+    day_list <- (0 - (input$days_before_today + 1)):num_days
     dates_of_interest = todays_date + day_list
     
     # get all fips for all counties for which we need death counts
@@ -816,7 +816,8 @@ server <- function(input, output, session) {
         # 5 subtract off previous day to get deaths per day
         arrange(fips, date) %>%
         group_by(fips) %>%
-        mutate(deaths = ifelse(date < todays_date, deaths - lag(deaths, default = 0), 0)) %>%
+        mutate(deaths = ifelse(date < todays_date, deaths - lag(deaths, default = NA), 0)) %>%
+        filter(date > min(date)) %>%
         ungroup %>% group_by(date) %>%
         summarise(deaths = sum(deaths)) %>%
         ungroup %>%
@@ -825,11 +826,11 @@ server <- function(input, output, session) {
         mutate(deaths = as.character(deaths)) %>%
         mutate(deaths = ifelse(date >= todays_date, '', deaths))
     
-    stopifnot(all.equal(tmp_death_data$date, dates_of_interest))
+    stopifnot(all.equal(tmp_death_data$date, dates_of_interest[-1]))
 
     # get chart data
     chart_data = data.table(
-      Date = dates_of_interest,
+      Date = dates_of_interest[-1],
       `Reported Deaths` = tmp_death_data$deaths,
       `Estimated<br />Acute Hospitalizations<br />(without intervention)` = round(case_numbers$severe_without_intervention),
       `Estimated<br />ICU Hospitalizations<br />(without intervention)` = round(case_numbers$critical_without_intervention)
