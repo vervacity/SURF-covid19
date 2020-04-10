@@ -877,22 +877,22 @@ server <- function(input, output, session) {
     time_series_df = get_time_series_dt()
 
     # split hospitalizations and death data to plot separately
-    chart_data_deaths = time_series_df[, c(1, 2)]
-    names(chart_data_deaths) = c('Date', 'value')
-    chart_data_deaths$variable = as.factor('Reported Deaths')
-    chart_data_deaths$value = as.numeric(chart_data_deaths$value)
-    
-    time_series_df[[2]] = NULL
+    # chart_data_deaths = time_series_df[, c(1, 2)]
+    # names(chart_data_deaths) = c('Date', 'value')
+    # chart_data_deaths$variable = as.factor('Reported Deaths')
+    # chart_data_deaths$value = as.numeric(chart_data_deaths$value)
+    # 
+    # time_series_df[[2]] = NULL
     chart_data = melt(time_series_df, id.vars = c('Date'))
+    chart_data$value = as.numeric(chart_data$value)
     
     ymax = chart_data[,max(value, na.rm = TRUE)]
 
     gp = ggplot(chart_data,
-                aes(x=Date, y=value, group=variable, text = sprintf("Date:  %s \n cases: %i", Date, value))) +
-      geom_line(aes(linetype = variable, color = variable)) +  guides(linetype=FALSE) + guides(size=FALSE) +
-      scale_color_manual(values=c("dodgerblue", "red", "black", 'purple')) +
-      scale_linetype_manual(values=c("solid", "solid", "solid", NA)) +
-      geom_point(data = chart_data_deaths, shape = '+', color = 'purple', aes(y = value)) +
+                aes(x=Date, y=value, group=variable, linetype = variable, color = variable, text = sprintf("Date:  %s \n cases: %i", Date, value))) +
+      geom_line() +  guides(linetype=FALSE) + guides(size=FALSE) +
+      scale_color_manual(values=c("purple", "dodgerblue", "red", "black")) +
+      scale_linetype_manual(values=c("solid", "solid", "solid", "solid")) +
       geom_vline(xintercept = as.numeric(todays_date), color = 'black', linetype = 'dotted') +
       annotate("text", x = todays_date, y = ymax, size = 3, color = 'black', label = "Today") + 
       theme_minimal() +
@@ -905,8 +905,8 @@ server <- function(input, output, session) {
       dt_changes = get_dt_changes()
       days <- dt_changes[c(FALSE, TRUE)]
 
-      gp = gp + scale_color_manual(values=c("dodgerblue", "red", "dodgerblue", "red")) +
-        scale_linetype_manual(values=c("dashed", "dashed", "solid", "solid"))
+      gp = gp + scale_color_manual(values=c("purple", "dodgerblue", "red", "dodgerblue", "red")) +
+        scale_linetype_manual(values=c("solid", "dashed", "dashed", "solid", "solid"))
       
       for (i in days) {
         gp = gp +
