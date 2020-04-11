@@ -70,7 +70,7 @@ ui <- shinyUI(
                                  numericInput("doubling_time", NULL, value = NA, min = 1, max = 20),
                                  uiOutput("case_scaler"),
                                  hr(),
-                                 sliderInput("days_before_today", "Number of Past Days to Model", 0, min = 0, max = 30),
+                                 sliderInput("proj_start_date", "Projection Start Date", Sys.Date() - 14, min = Sys.Date() - 30, max = Sys.Date()),
                                  sliderInput("num_days", "Number of Days to Model Ahead", 20, min = 1, max = 60),
                                  hr(),
                                  h4("Simulation of Intervention"),
@@ -289,7 +289,6 @@ ui <- shinyUI(
 ))
 
 server <- function(input, output, session) {
-  
   output$state_selector_1 <- renderUI({ #creates State select box object called in ui
     selectInput(inputId = "state1", #name of input
                 label = "State:", #label displayed in ui
@@ -685,27 +684,29 @@ server <- function(input, output, session) {
   
   # Function to get hospitalizations from cumulative cases, with projection backwards from current cases to prevent jump at day LOS
   get_hospitalizations = function(cumulative_cases, los, doubling_time) {
+      days_before_today = Sys.Date() - input$proj_start_date
+    
       # project back los + days before today days
       # since each day before today needs something to subtract off for los
-      back_vec = c(rep(NA, los + input$days_before_today), cumulative_cases)
-      for (i in (los + input$days_before_today):1) {
+      back_vec = c(rep(NA, los + days_before_today), cumulative_cases)
+      for (i in (los + days_before_today):1) {
           back_vec[i] = back_vec[i + 1]/2^(1/doubling_time)
       }
       
       # get indices of original vectors
-      original_start = los + input$days_before_today + 1
-      original_end = los + input$days_before_today + length(cumulative_cases)
+      original_start = los + days_before_today + 1
+      original_end = los + days_before_today + length(cumulative_cases)
       stopifnot(all.equal(back_vec[original_start:original_end], cumulative_cases))
       stopifnot(length(back_vec) == original_end)
       
       # get indices of vectors shifted by days before today
-      shifted_start = original_start - input$days_before_today
-      # shifted_end = original_end - input$days_before_today
+      shifted_start = original_start - days_before_today
+      # shifted_end = original_end - days_before_today
       
       # subtract off for length of stay
       return_vec = back_vec[shifted_start:original_end] - back_vec[(shifted_start - los):(original_end - los)]
 
-      return(list(result = return_vec, back_vec = back_vec[1:(los + input$days_before_today)]))
+      return(list(result = return_vec, back_vec = back_vec[1:(los + days_before_today)]))
   }
   
   get_case_numbers <- reactive({
@@ -757,11 +758,13 @@ server <- function(input, output, session) {
     }
     
     # no backwards projection here; tack on back_vec from before and subtract accordingly
+    days_before_today = Sys.Date() - input$proj_start_date
+    
     critical_cases = c(critical_back_vec, critical_cases)
-    critical_cases = critical_cases[(input$los_critical + 1):(input$los_critical + input$days_before_today + num_days + 1)] - critical_cases[1:(input$days_before_today + num_days + 1)]
+    critical_cases = critical_cases[(input$los_critical + 1):(input$los_critical + days_before_today + num_days + 1)] - critical_cases[1:(days_before_today + num_days + 1)]
     
     severe_cases = c(severe_back_vec, severe_cases)
-    severe_cases = severe_cases[(input$los_severe + 1):(input$los_severe + input$days_before_today + num_days + 1)] - severe_cases[1:(input$days_before_today + num_days + 1)]
+    severe_cases = severe_cases[(input$los_severe + 1):(input$los_severe + days_before_today + num_days + 1)] - severe_cases[1:(days_before_today + num_days + 1)]
 
     total_population <- naive_estimations$total_population
     validate(
@@ -784,10 +787,12 @@ server <- function(input, output, session) {
     req(input$county1)
     req(input$doubling_time)
     
+    days_before_today = Sys.Date() - input$proj_start_date
+    
     case_numbers <- get_case_numbers()
     
     num_days <- input$num_days
-    day_list <- (0 - (input$days_before_today + 1)):num_days
+    day_list <- (0 - (days_before_today + 1)):num_days
     dates_of_interest = todays_date + day_list
     
     # get all fips for all counties for which we need death counts
