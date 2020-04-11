@@ -1,0 +1,213 @@
+```{r}
+library(data.table)
+library(ggplot2)
+```
+
+# Function to calculate cumulative hospitalizations from census time series
+Actually probably don't need to use this here, but save it for later
+```{r}
+ICU_LOS = 9
+ACUTE_LOS = 7
+
+calc_cumulative_hospitalizations_from_census_time_series = function(exp_p_census_in_icu, icu_los, acute_los, dates, census) {
+
+  exp_agg_los = ICU_LOS*exp_p_census_in_icu + ACUTE_LOS*(1-exp_p_census_in_icu)
+
+  tmp_dt = data.table(
+    dt = dates,
+    log_census = log(census,2)
+  )
+
+  tmp_dt[,day := as.numeric(dt - min(dt))]
+  gr = lm(log_census ~ day, data = tmp_dt)$coefficients[['day']]
+
+  print(gr)
+  print(2^(-1*exp_agg_los/gr))
+  hospitalizedCumulative = census/(1 - 2^(-1*exp_agg_los/gr))
+  return(hospitalizedCumulative)
+}
+
+# Test
+calc_cumulative_hospitalizations_from_census_time_series(
+  exp_p_census_in_icu = 0.3,
+  icu_los = ICU_LOS,
+  acute_los = ACUTE_LOS,
+  dates = as.Date(c('2018-01-01', '2018-01-03')),
+  census = c(2, 50)
+)
+```
+
+
+# LA and SCC
+Raymond logged these directly from their websites.
+```{r}
+raw_la_scc = fread('data/hosp/la_scc.csv')
+
+la_scc = raw_la_scc[, date := as.Date(date)]
+
+# separate hospitalizedCumulative and hospitalizedCurrently
+la_scc[count_type == "ever", hospitalizedCumulative := count]
+la_scc[count_type == "current", hospitalizedCurrently := count]
+la_scc = la_scc[,.(state = "CA", date, county, hospitalizedCurrently, hospitalizedCumulative)]
+
+la_scc = la_scc[pmax(hospitalizedCumulative, hospitalizedCurrently, na.rm = TRUE) > 0]
+la_scc
+```
+
+
+# CA Counties besides LA, SCC
+These are reported by CA HHS and likely less complete than county reports.
+Assuming numbers are census and that positive_patients, icu_positive separate. 
+Dropping suspected cases.
+https://data.chhs.ca.gov/dataset/california-covid-19-hospital-data-and-case-statistics
+
+**These lines are all over the place, so dropping for now**
+
+```{r}
+raw_ca = fread('data/hosp/ca.csv')
+
+ca = raw_ca[!county %in% c("Los Angeles", "Santa Clara")]
+ca[, hospitalizedCurrently := positive_patients + icu_positive]
+ca[, hospitalizedCumulative := NA]
+ca[, date := as.Date(date)]
+ca = ca[,.(state = "CA", date, county, hospitalizedCurrently, hospitalizedCumulative)]
+ca = ca[pmax(hospitalizedCumulative, hospitalizedCurrently, na.rm = TRUE) > 0]
+ca
+```
+
+
+# NYC
+Reported by NYC Health: https://github.com/nychealth/coronavirus-data
+Counts organized by day of symptom onset, and date of hospitalization. 
+So will make cumulative sum of hospitaliations to get hospitalizedCumulative.
+```{r}
+raw_nyc = fread('data/hosp/nyc.csv')
+
+nyc = raw_nyc[,date := as.Date(DATE_OF_INTEREST)]
+nyc = nyc[,.(date, HOSPITALIZED_CASE_COUNT)]
+nyc = nyc[order(date)]
+nyc[, hospitalizedCumulative := cumsum(HOSPITALIZED_CASE_COUNT)]
+nyc[, hospitalizedCurrently := NA]
+nyc = nyc[!is.na(hospitalizedCumulative),.(state = "NY", date, county = "New York City", hospitalizedCurrently, hospitalizedCumulative)]
+nyc = nyc[pmax(hospitalizedCumulative, hospitalizedCurrently, na.rm = TRUE) > 0]
+nyc
+```
+
+
+# Suffolk County, NY
+Raymond downloaded this from county.
+Assuming these are daily hospital census based on ratio between deaths_cumulative/hospitalized growing a lot while deaths/hospitalized stays more constant.
+```{r}
+raw_suffolk = fread('data/hosp/suffolk.csv')
+suffolk = raw_suffolk[,date:=as.Date(date)]
+suffolk[, hospitalizedCurrently := hospitalized]
+suffolk[, hospitalizedCumulative := NA]
+suffolk = suffolk[,.(state = "NY", date, county = "Suffolk", hospitalizedCurrently, hospitalizedCumulative)]
+suffolk = suffolk[pmax(hospitalizedCumulative, hospitalizedCurrently, na.rm = TRUE) > 0]
+suffolk
+```
+
+
+
+# Floria cases
+Downloaded from https://services1.arcgis.com/CY1LXxl9zlJeBuRZ/ArcGIS/rest/services/Florida_COVID19_Case_Line_Data/FeatureServer/0/query?where=COUNTY+IS+NOT+NULL&objectIds=&time=&resultType=none&outFields=County%2C+Hospitalized%2C+Contact&returnIdsOnly=false&returnUniqueIdsOnly=false&returnCountOnly=false&returnDistinctValues=false&cacheHint=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&having=&resultOffset=&resultRecordCount=&sqlFormat=none&f=html&token=
+
+```{r}
+raw_fl_cases = fread('data/hosp/raw_florida_cases.csv')
+
+fl_cases = raw_fl_cases[!is.na(county) & hospitalized == "Yes"]
+fl_cases[, date := as.Date(as.POSIXct(event_date/1000, origin="1970-01-01"))]
+
+fl_cases = fl_cases[,.(
+  newHospitalizations = .N
+  ), by = c('county', 'date')]
+
+fl_cases = fl_cases[order(county, date)]
+fl_cases[, hospitalizedCumulative := cumsum(newHospitalizations), by='county']
+fl_cases[, hospitalizedCurrently := NA]
+fl_cases = fl_cases[,.(state = "FL", date, county, hospitalizedCurrently, hospitalizedCumulative)]
+fl_cases = fl_cases[pmax(hospitalizedCumulative, hospitalizedCurrently, na.rm = TRUE) > 0]
+
+fl_cases
+```
+
+
+
+# Combine all the time series
+
+**CA HHS data are all over the place, so dropping for now**
+
+```{r}
+combo = rbind(
+  la_scc,
+  #ca,
+  nyc,
+  suffolk,
+  fl_cases
+)
+
+combo[,uniqueN(county)]
+```
+
+Distribution of number of days by county
+```{r}
+days_by_county = combo[,.(days = .N), by=c('state','county')]
+ggplot(days_by_county, aes(x=days, fill = state)) + geom_histogram() + facet_wrap(~state, scales="free_y")
+```
+
+```{r}
+ggplot(combo, aes(x=date, y = pmax(hospitalizedCumulative, hospitalizedCurrently, na.rm = TRUE), color = county)) + 
+  geom_line() + facet_wrap(~state, scales="free") + theme(legend.position = "none") + scale_y_continuous(trans='log2')
+```
+
+
+
+Write out
+```{r}
+fwrite(combo, 'data/hosp/combined_hosp_ts.csv')
+```
+
+
+Empirical Hospitalization Doubling times by county
+```{r}
+calculate_doubling_time = function(dt, s, c) {
+  
+  subset = copy(dt)[state == s & county == c & pmax(hospitalizedCumulative, hospitalizedCurrently, na.rm = TRUE)>0]
+  subset[, `:=`(
+    log_2_hosp = log(ifelse(is.na(hospitalizedCumulative), hospitalizedCurrently, hospitalizedCumulative), 2),
+    day = as.numeric(date - min(date))
+    )]
+  
+  print(subset)
+  
+  coef = lm(log_2_hosp ~ day, data = subset)$coefficients[['day']]
+  dubtime = 1/coef
+  
+  return(data.table(
+    state = s,
+    county = c,
+    dubtime = dubtime
+  ))
+}
+
+state_counties = unique(combo[,.(state,county)])
+
+dts = rbindlist(lapply(seq(1,nrow(state_counties)), function(x) {
+  print(x)
+  calculate_doubling_time(combo, s = state_counties$state[x], c = state_counties$county[x])
+}))
+
+fwrite(dts, 'data/hosp/empirical_dts.csv')
+
+dts
+```
+
+
+```{r}
+ggplot(dts, aes(x=dubtime, fill = state)) + geom_histogram(binwidth = 1) + facet_wrap(~state, scales="free_y") + ggtitle("Empirical Doubling Times")
+```
+
+
+
+
+

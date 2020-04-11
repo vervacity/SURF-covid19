@@ -1,0 +1,16 @@
+
+# Predicting Future Hospitalizations with Empirical Doubling Times
+
+Idea: Predict future hospitalizations in a county with a few different methods:
+* Exponential extrapolation from current hospitalizations with county empirical case DT
+* Exponential extrapolation from current hospitalizations with state empirical hospitalization DT
+* Exponential extrapolation from current hospitalizations with adjusted case DTs (with daily state hosp / state cases to account for test coverage growing)
+* Some more fancy model. IHME ?
+
+
+### Compare empirical hospitalization DTS, case DTs, and adjusted case DTs (with daily state hosp / state cases)
+
+```{r}
+emp_hosp_dts = fread('data/hosp/empirical_dts.csv')
+```
+

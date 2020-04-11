@@ -1,0 +1,231 @@
+```{r, results='hide'}
+library(data.table)
+library(dplyr)
+library(lubridate)
+library(ggplot2)
+library(viridis)
+library(reshape2)
+```
+
+
+Load conditional severity rates at county-level for CA counties.
+Get LOS-weighted proportion of census in ICU to use with state-reported overall census.
+
+```{r}
+ICU_LOS = 9
+ACUTE_LOS = 7
+
+df <- read.csv('../data/county_age_severity_rates_v6.csv', stringsAsFactors = FALSE)
+df$County <- gsub('city', 'City', df$County)
+df = df %>% filter(State == "California") %>% group_by(FIPS, County) %>%
+    summarise(
+      total_population = sum(population_in_age_group),
+      wtd_critical_case_rate =  weighted.mean(critical_case_rate, population_in_age_group),
+      wtd_acute_case_rate =  weighted.mean(severe_cases_rate, population_in_age_group)) %>%
+  mutate(
+      wtd_prop_hosp_in_icu = ICU_LOS*wtd_critical_case_rate/(ICU_LOS*wtd_critical_case_rate+ACUTE_LOS*wtd_acute_case_rate))
+
+df = df %>% ungroup() %>% select(FIPS, County, wtd_prop_hosp_in_icu)
+df = df %>% mutate(County = gsub(' County', '', County))
+df
+```
+
+Join in bed data
+```{r}
+acute_beds_dt = fread('../data/acute_byFIPS.csv')
+icu_beds_dt = fread('../data/icu_byFIPS.csv')
+bed_dt = merge(acute_beds_dt, icu_beds_dt, by = "FIPS")
+df_w_beds = merge(df, bed_dt, by="FIPS", all.x = TRUE)
+df_w_beds
+```
+
+
+Merge in current hospitalizations (3/30)
+
+* Assume that hospitalizations numbers provided are current census. I later calculate the current estimated cumulative ICU and Floor hospitalizations given a past doubling time of 6 and LOS values provided by state.
+
+```{r}
+# CA Hospitalizations on 3/30
+hosp = fread('data/nigam_hospital_data_0330.csv')[,.(County, current_census = `COVID-19 Positive Patients March 30 2020`)]
+df_w_beds_hosp = as.data.table(merge(df_w_beds, hosp, by = 'County', all.x = TRUE))
+df_w_beds_hosp[,`:=`(
+  est_current_icu_census = wtd_prop_hosp_in_icu * current_census,
+  est_current_acute_census = (1-wtd_prop_hosp_in_icu) * current_census
+)]
+
+# estimate cumulative acute/icu hospitalizations with los and dt
+PAST_DT = 6
+df_w_beds_hosp[,`:=`(
+  est_current_cum_icu_hosp = 
+    est_current_icu_census/(1 - 2^(-1*ICU_LOS/PAST_DT)),
+  est_current_cum_acute_hosp = 
+    est_current_acute_census/(1 - 2^(-1*ACUTE_LOS/PAST_DT))
+)]
+
+df_w_beds_hosp
+```
+
+```{r}
+print(paste("Counties with nonzero hospitalizations: ", df_w_beds_hosp[current_census>0, .N]))
+```
+
+
+For now, only project hospitalizations for counties with nonzero hospitalizations.
+Projecting hospitalizations for other counties requires stronger assumptions about testing and/or fatality rates in order to estimate hospitalizations.
+
+Will now project 30-day time series of cumulative hospitalizations with doubling times of 6, 10, 14
+```{r}
+start_date = '2020-03-30'
+num_days_to_project = 30
+doubling_times = c(7,10,14)
+
+dts_cross_dates = as.data.table(expand.grid(
+  doubling_times,
+  as.Date('2020-03-30') + seq(0, num_days_to_project)
+))
+setnames(dts_cross_dates, c('doubling_time', 'date'))
+
+long_dt = merge(
+  df_w_beds_hosp[current_census>0][, i:=1],
+  dts_cross_dates[,i:=1],
+  by = 'i',
+  allow.cartesian = TRUE
+  )[,i:=NULL]
+
+long_dt[, days_since_start_date := as.numeric(date - as.Date(start_date)), by=.I]
+long_dt[, `:=`(
+  est_acute_hosp = est_current_cum_acute_hosp * 2^(days_since_start_date/doubling_time),
+  est_icu_hosp = est_current_cum_icu_hosp * 2^(days_since_start_date/doubling_time)
+)]
+long_dt
+```
+
+
+Estimate hospital census using LOS values
+```{r}
+
+# function from Shiny app
+get_hospitalizations = function(cumulative_cases, los, doubling_time) {
+  
+  days_to_hospitalization = 0
+  
+  # project back los + days to hospitalization days
+  back_vec = c(rep(NA, los + days_to_hospitalization), cumulative_cases)
+  for (i in (los + days_to_hospitalization):1) {
+    back_vec[i] = back_vec[i + 1]/2^(1/doubling_time)
+  }
+  
+  # get indices of original vectors
+  original_start = los + days_to_hospitalization + 1
+  original_end = los + days_to_hospitalization + length(cumulative_cases)
+  stopifnot(all.equal(back_vec[original_start:original_end], cumulative_cases))
+  stopifnot(length(back_vec) == original_end)
+  
+  # get indices of vectors shifted by days to hospitalization
+  shifted_start = original_start - days_to_hospitalization
+  shifted_end = original_end - days_to_hospitalization
+  
+  # subtract off for length of stay
+  return_vec = back_vec[shifted_start:shifted_end] - back_vec[(shifted_start - los):(shifted_end - los)]
+  
+  return(list(result = return_vec, back_vec = back_vec[1:los]))
+}
+
+
+# use on our data
+long_dt[,icu_census := get_hospitalizations(est_icu_hosp, ICU_LOS, doubling_time=6), by = c('County', 'doubling_time')]
+long_dt[,acute_census := get_hospitalizations(est_acute_hosp, ACUTE_LOS, doubling_time=6), by = c('County', 'doubling_time')]
+str(long_dt)
+```
+
+
+```{r}
+long_dt[County == "Santa Clara" & doubling_time == 7, .(date, icu_census, acute_census)]
+```
+
+
+Example plot
+```{r}
+ggplot(long_dt[County %in% c('Alameda', 'Santa Clara', 'San Mateo', 'San Francisco')],
+       aes(x=date, y=icu_census, color=factor(doubling_time))) + geom_line() +
+       facet_wrap(~County, ncol=2)
+```
+
+
+Create wide views with time series by county
+
+First, ICU time series by county
+```{r}
+PROP_OF_AHA_BEDS_AVAILABLE = 0.3
+
+icu_time_series_long = long_dt %>% group_by(County, date) %>%
+  summarise(
+    est_icu_beds_available = max(round(num_icu_beds * PROP_OF_AHA_BEDS_AVAILABLE)),
+    icu_census_lb = round(max(ifelse(doubling_time == doubling_times[3], icu_census, 0))),
+    icu_census_m = round(max(ifelse(doubling_time == doubling_times[2], icu_census, 0))),
+    icu_census_ub = round(max(ifelse(doubling_time == doubling_times[1], icu_census, 0))),
+  ) %>% ungroup()
+
+icu_time_series_long = icu_time_series_long %>% mutate(icu_census_str = paste0(icu_census_m, ' [', icu_census_lb, ', ', icu_census_ub, ']'))
+
+# icu_time_series_long %>% filter(County == "Santa Clara")
+
+wide_icu_str = as.data.table(dcast(icu_time_series_long, County + est_icu_beds_available ~ date, value.var = c('icu_census_str')))
+wide_icu_str
+```
+
+Now create a version that just shows excess census over 30% of AHA ICU beds
+```{r}
+icu_time_series_long_f = icu_time_series_long %>%
+  mutate(excess_demand = paste0(pmax(0, icu_census_m - est_icu_beds_available), 
+                                ' [', pmax(0, icu_census_lb - est_icu_beds_available), ', ', 
+                                icu_census_ub - est_icu_beds_available, ']')) %>%
+  mutate(excess_demand = ifelse(icu_census_ub>est_icu_beds_available, excess_demand, NA))
+
+wide_icu_excess_demand = as.data.table(dcast(icu_time_series_long_f, County + est_icu_beds_available ~ date, value.var = c('excess_demand')))
+wide_icu_excess_demand
+```
+
+Write the ICU tables to CSV for now
+```{r}
+fwrite(wide_icu_str, 'data/wide_icu_str_v4.csv')
+fwrite(wide_icu_excess_demand, 'data/wide_icu_excess_demand_v4.csv')
+```
+
+
+And let's do the same for Acute/Floor beds
+
+```{r}
+acute_time_series_long = long_dt %>% group_by(County, date) %>%
+  summarise(
+    est_acute_beds_available = max(round(num_acute_beds * PROP_OF_AHA_BEDS_AVAILABLE)),
+    acute_census_lb = round(max(ifelse(doubling_time == doubling_times[3], acute_census, 0))),
+    acute_census_m = round(max(ifelse(doubling_time == doubling_times[2], acute_census, 0))),
+    acute_census_ub = round(max(ifelse(doubling_time == doubling_times[1], acute_census, 0))),
+  ) %>% ungroup()
+
+acute_time_series_long = acute_time_series_long %>% mutate(acute_census_str = paste0(acute_census_m, ' [', acute_census_lb, ', ', acute_census_ub, ']'))
+
+# acute_time_series_long %>% filter(County == "Santa Clara")
+
+wide_acute_str = as.data.table(dcast(acute_time_series_long, County + est_acute_beds_available ~ date, value.var = c('acute_census_str')))
+wide_acute_str
+```
+
+```{r}
+acute_time_series_long_f = acute_time_series_long %>%
+  mutate(excess_demand = paste0(pmax(0, acute_census_m - est_acute_beds_available), 
+                                ' [', pmax(0, acute_census_lb - est_acute_beds_available), ', ', 
+                                acute_census_ub - est_acute_beds_available, ']')) %>%
+  mutate(excess_demand = ifelse(acute_census_ub > est_acute_beds_available, excess_demand, NA))
+
+wide_acute_excess_demand = as.data.table(dcast(acute_time_series_long_f, County + est_acute_beds_available ~ date, value.var = c('excess_demand')))
+wide_acute_excess_demand
+```
+
+
+```{r}
+fwrite(wide_acute_str, 'data/wide_acute_str_v4.csv')
+fwrite(wide_acute_excess_demand, 'data/wide_acute_excess_demand_v4.csv')
+```
+
