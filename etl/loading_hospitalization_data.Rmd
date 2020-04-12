@@ -112,13 +112,15 @@ suffolk
 # Floria cases
 Downloaded from https://services1.arcgis.com/CY1LXxl9zlJeBuRZ/ArcGIS/rest/services/Florida_COVID19_Case_Line_Data/FeatureServer/0/query?where=COUNTY+IS+NOT+NULL&objectIds=&time=&resultType=none&outFields=County%2C+Hospitalized%2C+Contact&returnIdsOnly=false&returnUniqueIdsOnly=false&returnCountOnly=false&returnDistinctValues=false&cacheHint=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&having=&resultOffset=&resultRecordCount=&sqlFormat=none&f=html&token=
 
+Not sure how good this data is. Some dates are before March 1, when I don't think there were any hospitalized cases. Will remove data from before March 1
+
 ```{r}
 raw_fl_cases = fread('data/hosp/raw_florida_cases.csv')
 
 fl_cases = raw_fl_cases[!is.na(county) & hospitalized == "Yes"]
 fl_cases[, date := as.Date(as.POSIXct(event_date/1000, origin="1970-01-01"))]
 
-fl_cases = fl_cases[,.(
+fl_cases = fl_cases[date >= as.Date("2020-03-01"),.(
   newHospitalizations = .N
   ), by = c('county', 'date')]
 
