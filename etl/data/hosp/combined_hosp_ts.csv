@@ -1,0 +1,912 @@
+state,date,county,hospitalizedCurrently,hospitalizedCumulative
+CA,2020-03-24,Los Angeles,,119
+CA,2020-03-25,Los Angeles,,160
+CA,2020-03-26,Los Angeles,,253
+CA,2020-03-28,Los Angeles,,398
+CA,2020-03-29,Los Angeles,,453
+CA,2020-03-30,Los Angeles,,492
+CA,2020-04-01,Los Angeles,,594
+CA,2020-04-02,Los Angeles,,879
+CA,2020-04-03,Los Angeles,,1018
+CA,2020-04-04,Los Angeles,,1168
+CA,2020-04-05,Los Angeles,,1257
+CA,2020-04-07,Los Angeles,,1366
+CA,2020-04-08,Los Angeles,,1510
+CA,2020-04-10,Los Angeles,,2043
+CA,2020-03-23,Santa Clara,125,
+CA,2020-03-24,Santa Clara,137,
+CA,2020-03-30,Santa Clara,172,
+CA,2020-03-31,Santa Clara,198,
+CA,2020-04-01,Santa Clara,245,
+CA,2020-04-02,Santa Clara,287,
+CA,2020-04-03,Santa Clara,268,
+CA,2020-04-04,Santa Clara,266,
+NY,2020-03-02,New York City,,13
+NY,2020-03-03,New York City,,23
+NY,2020-03-04,New York City,,36
+NY,2020-03-05,New York City,,54
+NY,2020-03-06,New York City,,71
+NY,2020-03-07,New York City,,80
+NY,2020-03-08,New York City,,95
+NY,2020-03-09,New York City,,130
+NY,2020-03-10,New York City,,179
+NY,2020-03-11,New York City,,252
+NY,2020-03-12,New York City,,327
+NY,2020-03-13,New York City,,465
+NY,2020-03-14,New York City,,616
+NY,2020-03-15,New York City,,802
+NY,2020-03-16,New York City,,1107
+NY,2020-03-17,New York City,,1452
+NY,2020-03-18,New York City,,1890
+NY,2020-03-19,New York City,,2407
+NY,2020-03-20,New York City,,3016
+NY,2020-03-21,New York City,,3663
+NY,2020-03-22,New York City,,4350
+NY,2020-03-23,New York City,,5331
+NY,2020-03-24,New York City,,6380
+NY,2020-03-25,New York City,,7595
+NY,2020-03-26,New York City,,8914
+NY,2020-03-27,New York City,,10197
+NY,2020-03-28,New York City,,11424
+NY,2020-03-29,New York City,,12714
+NY,2020-03-30,New York City,,14276
+NY,2020-03-31,New York City,,15713
+NY,2020-04-01,New York City,,17152
+NY,2020-04-02,New York City,,18769
+NY,2020-04-03,New York City,,20396
+NY,2020-04-04,New York City,,21736
+NY,2020-04-05,New York City,,23026
+NY,2020-04-06,New York City,,24420
+NY,2020-04-07,New York City,,25333
+NY,2020-04-08,New York City,,25701
+NY,2020-04-09,New York City,,25704
+NY,2020-03-22,Suffolk,89,
+NY,2020-03-23,Suffolk,116,
+NY,2020-03-24,Suffolk,163,
+NY,2020-03-25,Suffolk,206,
+NY,2020-03-26,Suffolk,287,
+NY,2020-03-27,Suffolk,331,
+NY,2020-03-28,Suffolk,409,
+NY,2020-03-29,Suffolk,502,
+NY,2020-03-30,Suffolk,601,
+NY,2020-03-31,Suffolk,708,
+NY,2020-04-01,Suffolk,897,
+NY,2020-04-02,Suffolk,1057,
+NY,2020-04-03,Suffolk,1298,
+NY,2020-04-04,Suffolk,1416,
+NY,2020-04-05,Suffolk,1435,
+NY,2020-04-06,Suffolk,1463,
+NY,2020-04-07,Suffolk,1517,
+NY,2020-04-08,Suffolk,1585,
+FL,2020-03-05,Alachua,,1
+FL,2020-03-09,Alachua,,2
+FL,2020-03-10,Alachua,,3
+FL,2020-03-11,Alachua,,5
+FL,2020-03-12,Alachua,,6
+FL,2020-03-13,Alachua,,7
+FL,2020-03-14,Alachua,,8
+FL,2020-03-20,Alachua,,10
+FL,2020-03-21,Alachua,,11
+FL,2020-03-23,Alachua,,12
+FL,2020-03-24,Alachua,,13
+FL,2020-03-26,Alachua,,15
+FL,2020-03-27,Alachua,,16
+FL,2020-03-28,Alachua,,17
+FL,2020-03-31,Alachua,,18
+FL,2020-04-02,Alachua,,19
+FL,2020-04-04,Alachua,,20
+FL,2020-04-05,Alachua,,21
+FL,2020-04-06,Alachua,,22
+FL,2020-04-08,Alachua,,23
+FL,2020-04-10,Alachua,,24
+FL,2020-03-18,Baker,,1
+FL,2020-03-19,Baker,,2
+FL,2020-03-20,Baker,,3
+FL,2020-03-22,Baker,,4
+FL,2020-03-29,Baker,,5
+FL,2020-04-02,Baker,,6
+FL,2020-04-03,Baker,,7
+FL,2020-03-14,Bay,,1
+FL,2020-03-21,Bay,,3
+FL,2020-03-24,Bay,,4
+FL,2020-04-02,Bay,,5
+FL,2020-03-20,Bradford,,1
+FL,2020-03-23,Bradford,,2
+FL,2020-03-29,Bradford,,3
+FL,2020-03-10,Brevard,,1
+FL,2020-03-15,Brevard,,3
+FL,2020-03-17,Brevard,,6
+FL,2020-03-18,Brevard,,9
+FL,2020-03-19,Brevard,,11
+FL,2020-03-20,Brevard,,13
+FL,2020-03-21,Brevard,,14
+FL,2020-03-23,Brevard,,16
+FL,2020-03-24,Brevard,,20
+FL,2020-03-25,Brevard,,21
+FL,2020-03-26,Brevard,,22
+FL,2020-03-27,Brevard,,24
+FL,2020-03-28,Brevard,,26
+FL,2020-03-29,Brevard,,27
+FL,2020-03-30,Brevard,,29
+FL,2020-03-31,Brevard,,31
+FL,2020-04-01,Brevard,,32
+FL,2020-04-05,Brevard,,33
+FL,2020-04-08,Brevard,,34
+FL,2020-03-01,Broward,,1
+FL,2020-03-02,Broward,,2
+FL,2020-03-04,Broward,,4
+FL,2020-03-06,Broward,,7
+FL,2020-03-07,Broward,,9
+FL,2020-03-08,Broward,,15
+FL,2020-03-09,Broward,,18
+FL,2020-03-10,Broward,,24
+FL,2020-03-11,Broward,,32
+FL,2020-03-12,Broward,,43
+FL,2020-03-13,Broward,,49
+FL,2020-03-14,Broward,,55
+FL,2020-03-15,Broward,,65
+FL,2020-03-16,Broward,,76
+FL,2020-03-17,Broward,,93
+FL,2020-03-18,Broward,,108
+FL,2020-03-19,Broward,,131
+FL,2020-03-20,Broward,,149
+FL,2020-03-21,Broward,,171
+FL,2020-03-22,Broward,,183
+FL,2020-03-23,Broward,,210
+FL,2020-03-24,Broward,,228
+FL,2020-03-25,Broward,,251
+FL,2020-03-26,Broward,,266
+FL,2020-03-27,Broward,,280
+FL,2020-03-28,Broward,,295
+FL,2020-03-29,Broward,,310
+FL,2020-03-30,Broward,,329
+FL,2020-03-31,Broward,,343
+FL,2020-04-01,Broward,,350
+FL,2020-04-02,Broward,,358
+FL,2020-04-03,Broward,,363
+FL,2020-04-04,Broward,,372
+FL,2020-04-05,Broward,,380
+FL,2020-04-06,Broward,,385
+FL,2020-04-07,Broward,,392
+FL,2020-04-08,Broward,,396
+FL,2020-03-23,Calhoun,,1
+FL,2020-03-27,Calhoun,,2
+FL,2020-03-09,Charlotte,,1
+FL,2020-03-15,Charlotte,,3
+FL,2020-03-17,Charlotte,,4
+FL,2020-03-20,Charlotte,,5
+FL,2020-03-23,Charlotte,,6
+FL,2020-03-25,Charlotte,,7
+FL,2020-03-27,Charlotte,,11
+FL,2020-03-28,Charlotte,,13
+FL,2020-03-29,Charlotte,,14
+FL,2020-03-30,Charlotte,,15
+FL,2020-03-31,Charlotte,,16
+FL,2020-04-06,Charlotte,,17
+FL,2020-03-02,Citrus,,1
+FL,2020-03-14,Citrus,,2
+FL,2020-03-15,Citrus,,4
+FL,2020-03-17,Citrus,,5
+FL,2020-03-18,Citrus,,6
+FL,2020-03-19,Citrus,,7
+FL,2020-03-21,Citrus,,8
+FL,2020-03-24,Citrus,,10
+FL,2020-03-26,Citrus,,11
+FL,2020-03-28,Citrus,,12
+FL,2020-03-30,Citrus,,13
+FL,2020-03-31,Citrus,,16
+FL,2020-04-01,Citrus,,17
+FL,2020-04-03,Citrus,,18
+FL,2020-04-04,Citrus,,19
+FL,2020-03-03,Clay,,1
+FL,2020-03-06,Clay,,2
+FL,2020-03-07,Clay,,3
+FL,2020-03-08,Clay,,4
+FL,2020-03-11,Clay,,5
+FL,2020-03-13,Clay,,7
+FL,2020-03-15,Clay,,8
+FL,2020-03-16,Clay,,9
+FL,2020-03-17,Clay,,10
+FL,2020-03-18,Clay,,11
+FL,2020-03-19,Clay,,15
+FL,2020-03-20,Clay,,17
+FL,2020-03-21,Clay,,18
+FL,2020-03-22,Clay,,19
+FL,2020-03-24,Clay,,21
+FL,2020-03-25,Clay,,24
+FL,2020-03-27,Clay,,25
+FL,2020-03-28,Clay,,26
+FL,2020-03-29,Clay,,28
+FL,2020-03-30,Clay,,29
+FL,2020-04-02,Clay,,30
+FL,2020-04-04,Clay,,31
+FL,2020-04-06,Clay,,32
+FL,2020-04-07,Clay,,35
+FL,2020-03-02,Collier,,1
+FL,2020-03-04,Collier,,2
+FL,2020-03-05,Collier,,3
+FL,2020-03-07,Collier,,5
+FL,2020-03-10,Collier,,6
+FL,2020-03-11,Collier,,7
+FL,2020-03-15,Collier,,9
+FL,2020-03-16,Collier,,10
+FL,2020-03-17,Collier,,14
+FL,2020-03-18,Collier,,16
+FL,2020-03-19,Collier,,17
+FL,2020-03-20,Collier,,21
+FL,2020-03-21,Collier,,24
+FL,2020-03-22,Collier,,26
+FL,2020-03-23,Collier,,29
+FL,2020-03-24,Collier,,30
+FL,2020-03-25,Collier,,32
+FL,2020-03-26,Collier,,33
+FL,2020-03-28,Collier,,36
+FL,2020-03-30,Collier,,37
+FL,2020-04-01,Collier,,40
+FL,2020-04-02,Collier,,43
+FL,2020-04-03,Collier,,44
+FL,2020-04-08,Collier,,46
+FL,2020-03-20,Columbia,,1
+FL,2020-03-26,Columbia,,3
+FL,2020-04-01,Columbia,,4
+FL,2020-03-01,Dade,,4
+FL,2020-03-03,Dade,,5
+FL,2020-03-04,Dade,,7
+FL,2020-03-05,Dade,,11
+FL,2020-03-06,Dade,,12
+FL,2020-03-07,Dade,,19
+FL,2020-03-08,Dade,,21
+FL,2020-03-09,Dade,,27
+FL,2020-03-10,Dade,,38
+FL,2020-03-11,Dade,,48
+FL,2020-03-12,Dade,,57
+FL,2020-03-13,Dade,,70
+FL,2020-03-14,Dade,,85
+FL,2020-03-15,Dade,,113
+FL,2020-03-16,Dade,,127
+FL,2020-03-17,Dade,,152
+FL,2020-03-18,Dade,,173
+FL,2020-03-19,Dade,,184
+FL,2020-03-20,Dade,,207
+FL,2020-03-21,Dade,,226
+FL,2020-03-22,Dade,,235
+FL,2020-03-23,Dade,,265
+FL,2020-03-24,Dade,,290
+FL,2020-03-25,Dade,,315
+FL,2020-03-26,Dade,,340
+FL,2020-03-27,Dade,,355
+FL,2020-03-28,Dade,,372
+FL,2020-03-29,Dade,,395
+FL,2020-03-30,Dade,,409
+FL,2020-03-31,Dade,,428
+FL,2020-04-01,Dade,,444
+FL,2020-04-02,Dade,,460
+FL,2020-04-03,Dade,,478
+FL,2020-04-04,Dade,,492
+FL,2020-04-05,Dade,,500
+FL,2020-04-06,Dade,,507
+FL,2020-04-07,Dade,,511
+FL,2020-04-08,Dade,,512
+FL,2020-04-10,Dade,,513
+FL,2020-03-11,Desoto,,1
+FL,2020-03-16,Desoto,,2
+FL,2020-03-21,Desoto,,3
+FL,2020-04-02,Desoto,,5
+FL,2020-04-03,Desoto,,6
+FL,2020-03-25,Dixie,,1
+FL,2020-03-01,Duval,,1
+FL,2020-03-02,Duval,,2
+FL,2020-03-04,Duval,,3
+FL,2020-03-06,Duval,,4
+FL,2020-03-07,Duval,,5
+FL,2020-03-09,Duval,,8
+FL,2020-03-10,Duval,,9
+FL,2020-03-11,Duval,,11
+FL,2020-03-12,Duval,,16
+FL,2020-03-13,Duval,,20
+FL,2020-03-14,Duval,,25
+FL,2020-03-15,Duval,,29
+FL,2020-03-16,Duval,,30
+FL,2020-03-17,Duval,,32
+FL,2020-03-18,Duval,,34
+FL,2020-03-19,Duval,,37
+FL,2020-03-20,Duval,,41
+FL,2020-03-21,Duval,,45
+FL,2020-03-22,Duval,,46
+FL,2020-03-23,Duval,,49
+FL,2020-03-24,Duval,,51
+FL,2020-03-27,Duval,,52
+FL,2020-03-28,Duval,,53
+FL,2020-03-29,Duval,,54
+FL,2020-03-30,Duval,,55
+FL,2020-03-31,Duval,,56
+FL,2020-04-02,Duval,,57
+FL,2020-04-06,Duval,,58
+FL,2020-03-14,Escambia,,1
+FL,2020-03-17,Escambia,,2
+FL,2020-03-18,Escambia,,3
+FL,2020-03-23,Escambia,,4
+FL,2020-03-24,Escambia,,5
+FL,2020-03-25,Escambia,,6
+FL,2020-03-27,Escambia,,7
+FL,2020-03-30,Escambia,,9
+FL,2020-04-01,Escambia,,12
+FL,2020-04-04,Escambia,,14
+FL,2020-04-05,Escambia,,16
+FL,2020-04-07,Escambia,,17
+FL,2020-03-14,Flagler,,1
+FL,2020-03-19,Flagler,,3
+FL,2020-03-23,Flagler,,4
+FL,2020-03-30,Flagler,,5
+FL,2020-04-06,Flagler,,6
+FL,2020-04-03,Gadsden,,1
+FL,2020-04-09,Gilchrist,,1
+FL,2020-03-18,Glades,,1
+FL,2020-03-23,Glades,,2
+FL,2020-03-24,Glades,,3
+FL,2020-03-09,Hardee,,1
+FL,2020-03-10,Hardee,,2
+FL,2020-03-16,Hendry,,1
+FL,2020-03-18,Hendry,,2
+FL,2020-03-30,Hendry,,3
+FL,2020-03-31,Hendry,,4
+FL,2020-04-02,Hendry,,5
+FL,2020-03-14,Hernando,,1
+FL,2020-03-16,Hernando,,2
+FL,2020-03-18,Hernando,,4
+FL,2020-03-21,Hernando,,6
+FL,2020-03-24,Hernando,,8
+FL,2020-03-25,Hernando,,10
+FL,2020-03-26,Hernando,,11
+FL,2020-03-29,Hernando,,12
+FL,2020-03-31,Hernando,,13
+FL,2020-03-15,Highlands,,1
+FL,2020-03-21,Highlands,,2
+FL,2020-03-22,Highlands,,3
+FL,2020-03-24,Highlands,,5
+FL,2020-03-25,Highlands,,6
+FL,2020-03-30,Highlands,,10
+FL,2020-03-31,Highlands,,11
+FL,2020-04-01,Highlands,,12
+FL,2020-04-02,Highlands,,13
+FL,2020-04-03,Highlands,,14
+FL,2020-04-04,Highlands,,16
+FL,2020-04-07,Highlands,,17
+FL,2020-03-05,Hillsborough,,1
+FL,2020-03-07,Hillsborough,,3
+FL,2020-03-08,Hillsborough,,4
+FL,2020-03-09,Hillsborough,,6
+FL,2020-03-10,Hillsborough,,8
+FL,2020-03-11,Hillsborough,,10
+FL,2020-03-12,Hillsborough,,12
+FL,2020-03-14,Hillsborough,,14
+FL,2020-03-15,Hillsborough,,17
+FL,2020-03-16,Hillsborough,,20
+FL,2020-03-17,Hillsborough,,22
+FL,2020-03-18,Hillsborough,,26
+FL,2020-03-19,Hillsborough,,28
+FL,2020-03-20,Hillsborough,,39
+FL,2020-03-21,Hillsborough,,42
+FL,2020-03-22,Hillsborough,,47
+FL,2020-03-23,Hillsborough,,57
+FL,2020-03-24,Hillsborough,,66
+FL,2020-03-25,Hillsborough,,67
+FL,2020-03-26,Hillsborough,,70
+FL,2020-03-27,Hillsborough,,74
+FL,2020-03-28,Hillsborough,,80
+FL,2020-03-29,Hillsborough,,84
+FL,2020-03-30,Hillsborough,,97
+FL,2020-03-31,Hillsborough,,98
+FL,2020-04-01,Hillsborough,,101
+FL,2020-04-02,Hillsborough,,103
+FL,2020-04-03,Hillsborough,,105
+FL,2020-04-04,Hillsborough,,106
+FL,2020-04-05,Hillsborough,,109
+FL,2020-04-06,Hillsborough,,111
+FL,2020-04-08,Hillsborough,,112
+FL,2020-04-09,Hillsborough,,113
+FL,2020-04-10,Hillsborough,,115
+FL,2020-03-13,Indian River,,1
+FL,2020-03-14,Indian River,,2
+FL,2020-03-15,Indian River,,4
+FL,2020-03-18,Indian River,,5
+FL,2020-03-20,Indian River,,6
+FL,2020-03-21,Indian River,,7
+FL,2020-03-23,Indian River,,10
+FL,2020-03-24,Indian River,,11
+FL,2020-03-25,Indian River,,12
+FL,2020-03-26,Indian River,,13
+FL,2020-03-28,Indian River,,15
+FL,2020-03-30,Indian River,,17
+FL,2020-04-07,Indian River,,18
+FL,2020-03-27,Jefferson,,1
+FL,2020-04-01,Jefferson,,2
+FL,2020-03-02,Lake,,1
+FL,2020-03-12,Lake,,2
+FL,2020-03-13,Lake,,3
+FL,2020-03-14,Lake,,4
+FL,2020-03-15,Lake,,5
+FL,2020-03-16,Lake,,8
+FL,2020-03-17,Lake,,10
+FL,2020-03-18,Lake,,14
+FL,2020-03-19,Lake,,15
+FL,2020-03-20,Lake,,17
+FL,2020-03-21,Lake,,18
+FL,2020-03-22,Lake,,21
+FL,2020-03-23,Lake,,23
+FL,2020-03-24,Lake,,30
+FL,2020-03-26,Lake,,31
+FL,2020-03-27,Lake,,32
+FL,2020-03-28,Lake,,34
+FL,2020-03-30,Lake,,36
+FL,2020-03-31,Lake,,39
+FL,2020-04-05,Lake,,40
+FL,2020-04-09,Lake,,41
+FL,2020-03-01,Lee,,1
+FL,2020-03-04,Lee,,2
+FL,2020-03-05,Lee,,4
+FL,2020-03-06,Lee,,5
+FL,2020-03-07,Lee,,6
+FL,2020-03-10,Lee,,7
+FL,2020-03-11,Lee,,8
+FL,2020-03-13,Lee,,10
+FL,2020-03-14,Lee,,14
+FL,2020-03-15,Lee,,17
+FL,2020-03-16,Lee,,22
+FL,2020-03-17,Lee,,30
+FL,2020-03-18,Lee,,32
+FL,2020-03-19,Lee,,34
+FL,2020-03-20,Lee,,40
+FL,2020-03-21,Lee,,47
+FL,2020-03-22,Lee,,51
+FL,2020-03-23,Lee,,56
+FL,2020-03-24,Lee,,61
+FL,2020-03-25,Lee,,66
+FL,2020-03-26,Lee,,70
+FL,2020-03-27,Lee,,75
+FL,2020-03-28,Lee,,76
+FL,2020-03-29,Lee,,78
+FL,2020-03-30,Lee,,81
+FL,2020-03-31,Lee,,86
+FL,2020-04-01,Lee,,87
+FL,2020-04-02,Lee,,89
+FL,2020-04-03,Lee,,91
+FL,2020-04-04,Lee,,92
+FL,2020-04-05,Lee,,95
+FL,2020-04-06,Lee,,96
+FL,2020-04-07,Lee,,108
+FL,2020-04-08,Lee,,109
+FL,2020-03-10,Leon,,1
+FL,2020-03-13,Leon,,2
+FL,2020-03-19,Leon,,3
+FL,2020-03-20,Leon,,4
+FL,2020-03-23,Leon,,6
+FL,2020-03-24,Leon,,7
+FL,2020-03-26,Leon,,8
+FL,2020-03-30,Leon,,9
+FL,2020-04-03,Leon,,12
+FL,2020-04-06,Leon,,13
+FL,2020-04-07,Leon,,15
+FL,2020-04-08,Leon,,17
+FL,2020-03-15,Levy,,1
+FL,2020-03-23,Madison,,1
+FL,2020-03-03,Manatee,,1
+FL,2020-03-04,Manatee,,2
+FL,2020-03-05,Manatee,,3
+FL,2020-03-08,Manatee,,4
+FL,2020-03-10,Manatee,,7
+FL,2020-03-12,Manatee,,8
+FL,2020-03-14,Manatee,,11
+FL,2020-03-15,Manatee,,12
+FL,2020-03-16,Manatee,,14
+FL,2020-03-17,Manatee,,16
+FL,2020-03-18,Manatee,,18
+FL,2020-03-19,Manatee,,19
+FL,2020-03-20,Manatee,,20
+FL,2020-03-22,Manatee,,22
+FL,2020-03-23,Manatee,,24
+FL,2020-03-24,Manatee,,26
+FL,2020-03-26,Manatee,,29
+FL,2020-03-28,Manatee,,32
+FL,2020-03-29,Manatee,,33
+FL,2020-03-30,Manatee,,37
+FL,2020-03-31,Manatee,,38
+FL,2020-04-01,Manatee,,39
+FL,2020-04-09,Manatee,,40
+FL,2020-03-20,Marion,,1
+FL,2020-03-27,Marion,,4
+FL,2020-03-28,Marion,,5
+FL,2020-04-01,Marion,,8
+FL,2020-04-07,Marion,,9
+FL,2020-03-03,Martin,,1
+FL,2020-03-10,Martin,,2
+FL,2020-03-11,Martin,,4
+FL,2020-03-14,Martin,,5
+FL,2020-03-16,Martin,,6
+FL,2020-03-17,Martin,,7
+FL,2020-03-18,Martin,,8
+FL,2020-03-19,Martin,,9
+FL,2020-03-20,Martin,,11
+FL,2020-03-21,Martin,,12
+FL,2020-03-22,Martin,,15
+FL,2020-03-23,Martin,,16
+FL,2020-03-24,Martin,,19
+FL,2020-03-27,Martin,,20
+FL,2020-03-28,Martin,,21
+FL,2020-03-29,Martin,,23
+FL,2020-03-30,Martin,,24
+FL,2020-04-01,Martin,,25
+FL,2020-04-08,Martin,,26
+FL,2020-03-17,Monroe,,2
+FL,2020-03-20,Monroe,,3
+FL,2020-03-22,Monroe,,5
+FL,2020-03-25,Monroe,,6
+FL,2020-03-27,Monroe,,7
+FL,2020-03-01,Nassau,,1
+FL,2020-03-16,Nassau,,2
+FL,2020-03-22,Nassau,,3
+FL,2020-03-27,Nassau,,4
+FL,2020-04-02,Nassau,,6
+FL,2020-04-03,Nassau,,7
+FL,2020-03-05,Okaloosa,,1
+FL,2020-03-13,Okaloosa,,2
+FL,2020-03-14,Okaloosa,,3
+FL,2020-03-17,Okaloosa,,4
+FL,2020-03-18,Okaloosa,,6
+FL,2020-03-21,Okaloosa,,7
+FL,2020-03-23,Okaloosa,,8
+FL,2020-03-29,Okaloosa,,10
+FL,2020-04-01,Okaloosa,,12
+FL,2020-04-03,Okaloosa,,13
+FL,2020-04-08,Okaloosa,,14
+FL,2020-04-09,Okaloosa,,15
+FL,2020-03-27,Okeechobee,,1
+FL,2020-04-04,Okeechobee,,2
+FL,2020-03-07,Orange,,1
+FL,2020-03-09,Orange,,2
+FL,2020-03-10,Orange,,3
+FL,2020-03-11,Orange,,8
+FL,2020-03-12,Orange,,12
+FL,2020-03-13,Orange,,15
+FL,2020-03-14,Orange,,20
+FL,2020-03-15,Orange,,26
+FL,2020-03-16,Orange,,31
+FL,2020-03-17,Orange,,40
+FL,2020-03-18,Orange,,49
+FL,2020-03-19,Orange,,55
+FL,2020-03-20,Orange,,65
+FL,2020-03-21,Orange,,71
+FL,2020-03-22,Orange,,77
+FL,2020-03-23,Orange,,83
+FL,2020-03-24,Orange,,91
+FL,2020-03-25,Orange,,96
+FL,2020-03-26,Orange,,103
+FL,2020-03-27,Orange,,107
+FL,2020-03-28,Orange,,112
+FL,2020-03-29,Orange,,118
+FL,2020-03-31,Orange,,121
+FL,2020-04-01,Orange,,123
+FL,2020-04-02,Orange,,125
+FL,2020-04-03,Orange,,126
+FL,2020-04-04,Orange,,128
+FL,2020-04-05,Orange,,129
+FL,2020-04-07,Orange,,130
+FL,2020-03-01,Osceola,,2
+FL,2020-03-05,Osceola,,4
+FL,2020-03-07,Osceola,,6
+FL,2020-03-09,Osceola,,8
+FL,2020-03-10,Osceola,,10
+FL,2020-03-11,Osceola,,11
+FL,2020-03-12,Osceola,,14
+FL,2020-03-13,Osceola,,15
+FL,2020-03-14,Osceola,,19
+FL,2020-03-15,Osceola,,26
+FL,2020-03-16,Osceola,,29
+FL,2020-03-17,Osceola,,33
+FL,2020-03-18,Osceola,,38
+FL,2020-03-19,Osceola,,43
+FL,2020-03-20,Osceola,,46
+FL,2020-03-21,Osceola,,52
+FL,2020-03-22,Osceola,,57
+FL,2020-03-23,Osceola,,58
+FL,2020-03-24,Osceola,,61
+FL,2020-03-25,Osceola,,67
+FL,2020-03-26,Osceola,,72
+FL,2020-03-27,Osceola,,73
+FL,2020-03-29,Osceola,,78
+FL,2020-03-30,Osceola,,83
+FL,2020-04-01,Osceola,,85
+FL,2020-04-02,Osceola,,87
+FL,2020-04-03,Osceola,,89
+FL,2020-04-04,Osceola,,93
+FL,2020-04-06,Osceola,,95
+FL,2020-03-01,Palm Beach,,2
+FL,2020-03-04,Palm Beach,,4
+FL,2020-03-05,Palm Beach,,6
+FL,2020-03-06,Palm Beach,,9
+FL,2020-03-07,Palm Beach,,13
+FL,2020-03-09,Palm Beach,,17
+FL,2020-03-10,Palm Beach,,22
+FL,2020-03-11,Palm Beach,,30
+FL,2020-03-12,Palm Beach,,37
+FL,2020-03-13,Palm Beach,,49
+FL,2020-03-14,Palm Beach,,60
+FL,2020-03-15,Palm Beach,,66
+FL,2020-03-16,Palm Beach,,72
+FL,2020-03-17,Palm Beach,,79
+FL,2020-03-18,Palm Beach,,92
+FL,2020-03-19,Palm Beach,,100
+FL,2020-03-20,Palm Beach,,111
+FL,2020-03-21,Palm Beach,,118
+FL,2020-03-22,Palm Beach,,127
+FL,2020-03-23,Palm Beach,,139
+FL,2020-03-24,Palm Beach,,146
+FL,2020-03-25,Palm Beach,,152
+FL,2020-03-26,Palm Beach,,158
+FL,2020-03-27,Palm Beach,,175
+FL,2020-03-28,Palm Beach,,180
+FL,2020-03-29,Palm Beach,,187
+FL,2020-03-30,Palm Beach,,199
+FL,2020-03-31,Palm Beach,,209
+FL,2020-04-01,Palm Beach,,219
+FL,2020-04-02,Palm Beach,,225
+FL,2020-04-03,Palm Beach,,233
+FL,2020-04-04,Palm Beach,,236
+FL,2020-04-05,Palm Beach,,240
+FL,2020-04-06,Palm Beach,,247
+FL,2020-04-07,Palm Beach,,249
+FL,2020-04-08,Palm Beach,,255
+FL,2020-04-09,Palm Beach,,256
+FL,2020-04-10,Palm Beach,,259
+FL,2020-03-07,Pasco,,2
+FL,2020-03-08,Pasco,,3
+FL,2020-03-14,Pasco,,4
+FL,2020-03-17,Pasco,,5
+FL,2020-03-18,Pasco,,6
+FL,2020-03-19,Pasco,,10
+FL,2020-03-20,Pasco,,11
+FL,2020-03-21,Pasco,,13
+FL,2020-03-22,Pasco,,14
+FL,2020-03-23,Pasco,,15
+FL,2020-03-24,Pasco,,16
+FL,2020-03-25,Pasco,,17
+FL,2020-03-26,Pasco,,18
+FL,2020-03-27,Pasco,,19
+FL,2020-03-29,Pasco,,20
+FL,2020-03-30,Pasco,,22
+FL,2020-04-01,Pasco,,26
+FL,2020-04-07,Pasco,,27
+FL,2020-03-03,Pinellas,,1
+FL,2020-03-05,Pinellas,,3
+FL,2020-03-06,Pinellas,,5
+FL,2020-03-08,Pinellas,,7
+FL,2020-03-09,Pinellas,,9
+FL,2020-03-10,Pinellas,,11
+FL,2020-03-12,Pinellas,,14
+FL,2020-03-13,Pinellas,,15
+FL,2020-03-14,Pinellas,,16
+FL,2020-03-15,Pinellas,,21
+FL,2020-03-16,Pinellas,,26
+FL,2020-03-17,Pinellas,,30
+FL,2020-03-18,Pinellas,,34
+FL,2020-03-19,Pinellas,,38
+FL,2020-03-20,Pinellas,,42
+FL,2020-03-21,Pinellas,,44
+FL,2020-03-22,Pinellas,,47
+FL,2020-03-23,Pinellas,,52
+FL,2020-03-24,Pinellas,,53
+FL,2020-03-25,Pinellas,,57
+FL,2020-03-26,Pinellas,,60
+FL,2020-03-27,Pinellas,,61
+FL,2020-03-28,Pinellas,,63
+FL,2020-03-29,Pinellas,,65
+FL,2020-03-30,Pinellas,,66
+FL,2020-03-31,Pinellas,,71
+FL,2020-04-01,Pinellas,,72
+FL,2020-04-02,Pinellas,,73
+FL,2020-04-05,Pinellas,,79
+FL,2020-04-08,Pinellas,,81
+FL,2020-04-09,Pinellas,,83
+FL,2020-03-04,Polk,,1
+FL,2020-03-05,Polk,,2
+FL,2020-03-10,Polk,,3
+FL,2020-03-12,Polk,,6
+FL,2020-03-13,Polk,,9
+FL,2020-03-14,Polk,,12
+FL,2020-03-15,Polk,,17
+FL,2020-03-16,Polk,,24
+FL,2020-03-17,Polk,,25
+FL,2020-03-18,Polk,,29
+FL,2020-03-19,Polk,,31
+FL,2020-03-20,Polk,,35
+FL,2020-03-21,Polk,,38
+FL,2020-03-22,Polk,,41
+FL,2020-03-24,Polk,,42
+FL,2020-03-25,Polk,,48
+FL,2020-03-26,Polk,,50
+FL,2020-03-27,Polk,,54
+FL,2020-03-28,Polk,,57
+FL,2020-03-29,Polk,,60
+FL,2020-03-30,Polk,,65
+FL,2020-03-31,Polk,,66
+FL,2020-04-01,Polk,,67
+FL,2020-04-02,Polk,,71
+FL,2020-04-03,Polk,,72
+FL,2020-04-08,Polk,,73
+FL,2020-04-09,Polk,,74
+FL,2020-03-15,Putnam,,2
+FL,2020-03-23,Putnam,,4
+FL,2020-03-24,Putnam,,5
+FL,2020-03-28,Putnam,,6
+FL,2020-04-02,Putnam,,7
+FL,2020-04-03,Putnam,,8
+FL,2020-03-04,Santa Rosa,,1
+FL,2020-03-06,Santa Rosa,,2
+FL,2020-03-15,Santa Rosa,,3
+FL,2020-03-17,Santa Rosa,,5
+FL,2020-03-21,Santa Rosa,,6
+FL,2020-03-22,Santa Rosa,,7
+FL,2020-03-24,Santa Rosa,,8
+FL,2020-03-30,Santa Rosa,,9
+FL,2020-03-31,Santa Rosa,,11
+FL,2020-04-02,Santa Rosa,,13
+FL,2020-04-06,Santa Rosa,,14
+FL,2020-04-07,Santa Rosa,,15
+FL,2020-03-01,Sarasota,,1
+FL,2020-03-04,Sarasota,,2
+FL,2020-03-06,Sarasota,,3
+FL,2020-03-09,Sarasota,,4
+FL,2020-03-10,Sarasota,,6
+FL,2020-03-11,Sarasota,,7
+FL,2020-03-12,Sarasota,,9
+FL,2020-03-13,Sarasota,,12
+FL,2020-03-14,Sarasota,,15
+FL,2020-03-15,Sarasota,,20
+FL,2020-03-16,Sarasota,,22
+FL,2020-03-17,Sarasota,,23
+FL,2020-03-18,Sarasota,,24
+FL,2020-03-19,Sarasota,,27
+FL,2020-03-20,Sarasota,,29
+FL,2020-03-21,Sarasota,,32
+FL,2020-03-22,Sarasota,,34
+FL,2020-03-23,Sarasota,,38
+FL,2020-03-24,Sarasota,,42
+FL,2020-03-25,Sarasota,,45
+FL,2020-03-26,Sarasota,,47
+FL,2020-03-27,Sarasota,,51
+FL,2020-03-28,Sarasota,,53
+FL,2020-03-29,Sarasota,,55
+FL,2020-03-30,Sarasota,,56
+FL,2020-04-01,Sarasota,,61
+FL,2020-04-02,Sarasota,,62
+FL,2020-04-03,Sarasota,,65
+FL,2020-04-04,Sarasota,,69
+FL,2020-04-05,Sarasota,,70
+FL,2020-04-06,Sarasota,,71
+FL,2020-04-09,Sarasota,,72
+FL,2020-03-06,Seminole,,2
+FL,2020-03-08,Seminole,,4
+FL,2020-03-10,Seminole,,5
+FL,2020-03-11,Seminole,,8
+FL,2020-03-12,Seminole,,11
+FL,2020-03-13,Seminole,,13
+FL,2020-03-14,Seminole,,15
+FL,2020-03-15,Seminole,,16
+FL,2020-03-16,Seminole,,17
+FL,2020-03-17,Seminole,,20
+FL,2020-03-18,Seminole,,25
+FL,2020-03-20,Seminole,,28
+FL,2020-03-21,Seminole,,29
+FL,2020-03-22,Seminole,,34
+FL,2020-03-23,Seminole,,36
+FL,2020-03-24,Seminole,,37
+FL,2020-03-25,Seminole,,39
+FL,2020-03-26,Seminole,,40
+FL,2020-03-27,Seminole,,43
+FL,2020-03-28,Seminole,,45
+FL,2020-03-29,Seminole,,50
+FL,2020-03-30,Seminole,,52
+FL,2020-03-31,Seminole,,53
+FL,2020-04-02,Seminole,,54
+FL,2020-04-05,Seminole,,55
+FL,2020-04-06,Seminole,,56
+FL,2020-04-08,Seminole,,58
+FL,2020-03-05,St. Johns,,1
+FL,2020-03-06,St. Johns,,2
+FL,2020-03-07,St. Johns,,3
+FL,2020-03-09,St. Johns,,4
+FL,2020-03-12,St. Johns,,5
+FL,2020-03-13,St. Johns,,8
+FL,2020-03-14,St. Johns,,10
+FL,2020-03-16,St. Johns,,11
+FL,2020-03-18,St. Johns,,14
+FL,2020-03-19,St. Johns,,16
+FL,2020-03-20,St. Johns,,19
+FL,2020-03-21,St. Johns,,21
+FL,2020-03-22,St. Johns,,24
+FL,2020-03-25,St. Johns,,26
+FL,2020-03-26,St. Johns,,28
+FL,2020-03-28,St. Johns,,29
+FL,2020-03-31,St. Johns,,30
+FL,2020-04-01,St. Johns,,31
+FL,2020-03-03,St. Lucie,,1
+FL,2020-03-04,St. Lucie,,2
+FL,2020-03-09,St. Lucie,,3
+FL,2020-03-10,St. Lucie,,4
+FL,2020-03-14,St. Lucie,,7
+FL,2020-03-16,St. Lucie,,12
+FL,2020-03-17,St. Lucie,,13
+FL,2020-03-18,St. Lucie,,16
+FL,2020-03-19,St. Lucie,,18
+FL,2020-03-20,St. Lucie,,19
+FL,2020-03-22,St. Lucie,,22
+FL,2020-03-23,St. Lucie,,24
+FL,2020-03-24,St. Lucie,,25
+FL,2020-03-26,St. Lucie,,26
+FL,2020-03-27,St. Lucie,,28
+FL,2020-03-29,St. Lucie,,30
+FL,2020-03-30,St. Lucie,,32
+FL,2020-03-31,St. Lucie,,34
+FL,2020-04-01,St. Lucie,,36
+FL,2020-04-03,St. Lucie,,37
+FL,2020-04-07,St. Lucie,,39
+FL,2020-04-08,St. Lucie,,40
+FL,2020-04-09,St. Lucie,,41
+FL,2020-03-09,Sumter,,1
+FL,2020-03-13,Sumter,,2
+FL,2020-03-14,Sumter,,4
+FL,2020-03-15,Sumter,,6
+FL,2020-03-17,Sumter,,10
+FL,2020-03-18,Sumter,,11
+FL,2020-03-19,Sumter,,12
+FL,2020-03-21,Sumter,,14
+FL,2020-03-22,Sumter,,15
+FL,2020-03-23,Sumter,,20
+FL,2020-03-24,Sumter,,21
+FL,2020-03-25,Sumter,,22
+FL,2020-03-27,Sumter,,23
+FL,2020-03-28,Sumter,,24
+FL,2020-03-30,Sumter,,25
+FL,2020-04-04,Sumter,,26
+FL,2020-04-07,Sumter,,27
+FL,2020-03-26,Suwannee,,1
+FL,2020-03-30,Suwannee,,2
+FL,2020-04-01,Suwannee,,3
+FL,2020-04-03,Suwannee,,6
+FL,2020-04-05,Suwannee,,7
+FL,2020-04-07,Suwannee,,9
+FL,2020-03-05,Volusia,,2
+FL,2020-03-06,Volusia,,3
+FL,2020-03-08,Volusia,,4
+FL,2020-03-10,Volusia,,6
+FL,2020-03-11,Volusia,,8
+FL,2020-03-12,Volusia,,10
+FL,2020-03-14,Volusia,,11
+FL,2020-03-15,Volusia,,14
+FL,2020-03-16,Volusia,,17
+FL,2020-03-17,Volusia,,18
+FL,2020-03-18,Volusia,,19
+FL,2020-03-19,Volusia,,22
+FL,2020-03-20,Volusia,,23
+FL,2020-03-21,Volusia,,25
+FL,2020-03-23,Volusia,,27
+FL,2020-03-24,Volusia,,31
+FL,2020-03-25,Volusia,,33
+FL,2020-03-26,Volusia,,36
+FL,2020-03-27,Volusia,,37
+FL,2020-03-28,Volusia,,40
+FL,2020-03-29,Volusia,,41
+FL,2020-03-31,Volusia,,42
+FL,2020-04-01,Volusia,,44
+FL,2020-04-02,Volusia,,45
+FL,2020-04-08,Volusia,,46
+FL,2020-04-10,Volusia,,47
+FL,2020-03-19,Wakulla,,2
+FL,2020-03-28,Wakulla,,3
+FL,2020-03-30,Wakulla,,4
+FL,2020-03-31,Wakulla,,5
+FL,2020-03-06,Walton,,1
+FL,2020-03-09,Walton,,2
+FL,2020-03-13,Walton,,3
+FL,2020-03-19,Walton,,5
+FL,2020-03-21,Washington,,1

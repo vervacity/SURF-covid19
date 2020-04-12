@@ -1,0 +1,272 @@
+```{r, results='hide', message=FALSE, warning=FALSE}
+library(data.table)
+library(ggplot2)
+library(lubridate)
+# install.packages("kableExtra")
+library(knitr)
+library(kableExtra)
+```
+
+```{r set-options, echo=FALSE, cache=FALSE}
+options(width = 30)
+```
+
+### Assumed constants
+```{r}
+# https://github.com/midas-network/COVID-19/blob/master/parameter_estimates/2019_novel_coronavirus/estimates.csv
+
+ICU_LOS = 9
+ACUTE_LOS = 7
+DAYS_FROM_SYMPTOMS_TO_HOSP = 6
+PREV_DT = 6
+```
+
+
+
+### Load COVID Tracking Time Series Data by State on Cases and Hospitalizations
+
+For states with any hospitalizedCumulative data that is identical to hospitalizedCurrently, only use the hospitalizedCurrently data.
+For states with only hospitalizedCumulative data that is never identical to hospitalizedCurrently, use hospitalizedCumulative data.
+For states with no hospitalizedCumulative, use only hospitalizedCurrently if available.
+
+```{r}
+raw_dt = fread('data/daily-covidtracker-0404.csv')[,.(date, state, positive, hospitalizedCurrently, hospitalizedCumulative)]
+raw_dt = raw_dt[!is.na(hospitalizedCurrently) | !is.na(hospitalizedCumulative)]
+raw_dt[, date := as.Date(as.character(date), format = '%Y %m %d')]
+
+state_data_types = raw_dt[,.(
+  useHospitalizedCurrently = pmax(
+    min(ifelse(!is.na(hospitalizedCumulative), 0, 1)),
+    max(
+    c(ifelse(hospitalizedCumulative == hospitalizedCurrently, 1, 0),0), na.rm = TRUE))
+  ), by = 'state']
+
+raw_dt = merge(raw_dt, state_data_types)
+raw_dt[useHospitalizedCurrently == 1, hospitalizedCumulative := NA]
+raw_dt[,useHospitalizedCurrently := NULL]
+
+raw_dt[state == "CA"] %>% kable() %>% kable_styling()
+```
+
+
+
+### Load Our Data on (Expected % of Cases Hospitalized, and Expected % of Hospitalizations in ICU) by County
+
+Aggregate to State-level and combine with Covid Tracking time series
+
+```{r}
+county_estimates = fread('data/county_age_severity_rates_v6.csv')
+
+state_agg = county_estimates[,.(
+  state_population = sum(population_in_age_group),
+  wtd_critical_case_rate =  weighted.mean(critical_case_rate, population_in_age_group),
+  wtd_acute_case_rate =  weighted.mean(severe_cases_rate, population_in_age_group)
+  ), by = 'State']
+
+state_abbrev = fread('data/state_abbrev.csv')[,.(State, Code)]
+
+state_agg = merge(state_abbrev, state_agg, by = 'State')
+state_agg = state_agg[,.(
+  state = Code,
+  state_population,
+  exp_prop_hosp_in_icu = ICU_LOS*wtd_critical_case_rate/(ICU_LOS*wtd_critical_case_rate+ACUTE_LOS*wtd_acute_case_rate),
+  exp_prop_cases_hos = wtd_critical_case_rate + wtd_acute_case_rate
+  )]
+
+state_agg %>% kable() %>% kable_styling()
+```
+
+```{r}
+state_ts = merge(raw_dt, state_agg)
+state_ts[state == "CA"] %>% kable() %>% kable_styling()
+```
+
+### Convert hospitalizedCurrently to hospitalizedCumulative with assumptions about % in ICU vs Floor, and LOS for each
+```{r, warning=FALSE}
+state_ts[,exp_agg_los := ICU_LOS*exp_prop_hosp_in_icu + ACUTE_LOS*(1-exp_prop_hosp_in_icu)]
+state_ts[!is.na(hospitalizedCumulative), imputed_cum_hos := FALSE]
+state_ts[is.na(hospitalizedCumulative), `:=`(
+  hospitalizedCumulative = hospitalizedCurrently/(1 - 2^(-1*exp_agg_los/PREV_DT)),
+  imputed_cum_hos = TRUE
+  )]
+
+
+state_ts = state_ts[,.(state, date, state_population,  exp_prop_cases_hos, positive, hospitalizedCumulative, imputed_cum_hos)]
+state_ts[state == "CA"] %>% kable() %>% kable_styling()
+```
+
+```{r}
+table(state_ts$imputed_cum_hos)
+```
+
+
+
+### Plot Cumulative Hospitalizations and Cumulative Positive Results by State
+Only plot states with at least 5 data points
+```{r, out.width="100%", fig.width=10, fig.height=6}
+state_ts[, state_n_obs := .N, by='state']
+state_ts = state_ts[state_n_obs>=5][,state_n_obs := NULL]
+
+ggplot(state_ts, aes(x=date, y=hospitalizedCumulative)) + geom_line() + facet_wrap(~state, scales = "free", ncol = 6)
+```
+
+Drop the stupid looking ones: AR, IN, ND, NH, OH, SC, SD, TX, VT, WA, WV
+```{r, out.width="100%", fig.width=8, fig.height=6}
+state_ts = state_ts[!(state %in% c('AR', 'IN', 'ND', 'NH', 'OH', 'SC', 'SD', 'TX', 'VT', "WA", 'WV'))]
+ggplot(state_ts, aes(x=date, y=hospitalizedCumulative)) + geom_line() + facet_wrap(~state, scales = "free", ncol = 6)
+```
+
+
+### Derive multiplier on cases by day and state to make actual hospitalizations equal expected hospitalizations 
+
+Expect cumulative hospitalizations to equal `exp_prop_cases_hos`*lag(positive, DAYS_FROM_SYMPTOMS_TO_HOSP)
+
+```{r}
+# Case time series
+raw_case_dt = fread('data/daily-covidtracker-0404.csv')[,.(date = as.Date(as.character(date), format = '%Y %m %d'), state, positive)]
+raw_case_dt[, hosp_date := date + DAYS_FROM_SYMPTOMS_TO_HOSP]
+lagged_case_dt = raw_case_dt[,.(state, date = hosp_date, lagged_cases = positive)]
+
+state_ts = merge(state_ts, lagged_case_dt, by = c('state', 'date'))
+state_ts[, exp_cum_hosp := lagged_cases * exp_prop_cases_hos]
+state_ts[state == "CA"] %>% kable() %>% kable_styling()
+```
+
+```{r, out.width="100%", fig.width=8, fig.height=6}
+state_ts[, empirical_case_multiplier := hospitalizedCumulative/exp_cum_hosp]
+
+ggplot(state_ts, aes(x=date, y=empirical_case_multiplier)) + geom_line() + facet_wrap(~state, scales = "free", ncol = 6)
+```
+
+
+
+### Apply the derived multipliers to case time series by state and compare empirical and adjusted growth rates
+
+```{r, out.width="100%", fig.width=8, fig.height=6, warning=FALSE}
+mult_dt = state_ts[,.(state, hosp_date = date, empirical_case_multiplier)]
+
+case_dt = merge(raw_case_dt, mult_dt, by = c('state', 'hosp_date'))
+
+case_dt[, adjusted_positive := positive * empirical_case_multiplier]
+
+case_dt = case_dt[positive>0 & adjusted_positive>0]
+
+ggplot(
+  melt(case_dt[,.(state, date, adjusted_positive, positive)], id.vars = c('state', 'date')),
+  aes(x=date, y=value, color = variable)) + geom_line() + facet_wrap(~state, scales = "free", ncol = 6) +
+  scale_y_continuous(trans='log2') + geom_smooth(method="lm")
+```
+
+
+
+```{r}
+
+calculate_raw_and_adjusted_growth_rates = function(full_dt, s) {
+  
+  subset = full_dt[state == s]
+  subset[, `:=`(
+    log_2_raw_cases = log(positive, 2),
+    log_2_adj_cases = log(adjusted_positive, 2),
+    day = as.numeric(date - min(date))
+    )]
+  
+  raw_coef = lm(log_2_raw_cases ~ day, data = subset)$coefficients[['day']]
+  
+  adj_coef = lm(log_2_adj_cases ~ day, data = subset)$coefficients[['day']]
+  
+  return(data.table(
+    state = s,
+    raw_coef = raw_coef,
+    raw_dt = 1/raw_coef,
+    adj_coef = adj_coef,
+    adj_dt = 1/adj_coef
+  ))
+}
+
+rbindlist(lapply(case_dt[,unique(state)], function(x) calculate_raw_and_adjusted_growth_rates(case_dt, x))) %>% kable() %>% kable_styling()
+```
+
+
+### Load county case time series and apply state-date multipliers to get adjusted time series
+
+
+```{r}
+raw_county_ts = fread("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv")
+raw_county_ts = raw_county_ts[,.(State = state, date = as.Date(date), county, cases)]
+raw_county_ts = merge(raw_county_ts, state_abbrev)
+raw_county_ts = raw_county_ts[,.(state = Code, county_cases = cases, county, date)]
+#raw_county_ts  %>% kable() %>% kable_styling()
+```
+
+
+```{r}
+county_ts = merge(case_dt[,.(state, date, empirical_case_multiplier)],
+                  raw_county_ts, by = c('state', 'date'))
+county_ts[, adjusted_cases := county_cases * empirical_case_multiplier]
+#county_ts  %>% kable() %>% kable_styling()
+```
+
+Plot some example counties.
+New York City, Los Angeles, Contra Costa, San Francisco, Santa Clara, San Mateo
+
+```{r}
+#unique(county_ts[, .(county, state)])[state == "CA"]
+
+ggplot(
+  melt(county_ts[county %in% c('New York City', 'Los Angeles', 'Contra Costa', 'San Francisco', 'Santa Clara', 'San Mateo'),
+                 .(county, date, adjusted_cases, county_cases)], id.vars = c('county', 'date')),
+  aes(x=date, y=value, color = variable)) + geom_line() + facet_wrap(~county, scales = "free", ncol = 3) +
+  scale_y_continuous(trans='log2') + geom_smooth()
+```
+
+
+
+Raw and adjusted doubling times
+```{r}
+calculate_raw_and_adjusted_growth_rates = function(full_dt, s, c) {
+  
+  subset = full_dt[state == s & county == c]
+  subset[, `:=`(
+    log_2_raw_cases = log(county_cases, 2),
+    log_2_adj_cases = log(adjusted_cases, 2),
+    day = as.numeric(date - min(date))
+    )]
+  
+  raw_coef = lm(log_2_raw_cases ~ day, data = subset)$coefficients[['day']]
+  
+  adj_coef = lm(log_2_adj_cases ~ day, data = subset)$coefficients[['day']]
+  
+  return(data.table(
+    state = s,
+    county = c,
+    raw_coef = raw_coef,
+    raw_dt = 1/raw_coef,
+    adj_coef = adj_coef,
+    adj_dt = 1/adj_coef
+  ))
+}
+
+
+
+rbindlist(lapply(
+  list(
+    list(state = "NY", county = 'New York City'),
+    list(state = "CA", county = 'Los Angeles'),
+    list(state = "NY" , county = 'Suffolk'),
+    list(state = "CA", county = 'San Francisco'),
+    list(state = "CA", county = 'Santa Clara'),
+    list(state = "CA", county = 'San Mateo')), 
+  function(x) calculate_raw_and_adjusted_growth_rates(county_ts, s = x$state, c = x$county))) %>% kable() %>% kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+
+
+Calculate all doubling times and write out
+```{r}
+all_state_counties = unique(county_ts[, .(state, county)])
+
+fwrite(rbindlist(lapply(seq(1,nrow(all_state_counties)), 
+                 function(x) calculate_raw_and_adjusted_growth_rates(county_ts, s = all_state_counties$state[x], c = all_state_counties$county[x]))),
+       'data/adj_dts.csv')
+```
+

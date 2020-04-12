@@ -168,7 +168,7 @@ ui <- shinyUI(
                           
                           HTML('
                             <blockquote style="font-size: 1em;">
-                            For each US county, the model accepts as an input the number of COVID-19 cases or hospitalizations and the associated doubling time, if these are available. If these are not available, the model imports the latest number of confirmed cases from the USA facts online repository and accepts user-entered parameters of the ratio of total cases to confirmed cases (e.g. 5) and the COVID-19 population-level doubling time (e.g. 6 days). <br /><br />
+                            For each US county, the model accepts as an input the number of COVID-19 cases or hospitalizations and the associated doubling time, if these are available. If these are not available, the model imports the latest number of confirmed cases from the New York Times online repository and accepts user-entered parameters of the ratio of total cases to confirmed cases (e.g. 5) and the COVID-19 population-level doubling time (e.g. 6 days). <br /><br />
                             The effects of interventions that mitigate the spread of infection (such as social distancing) are simulated with user-entered parameters of the changes in doubling time and the days of those changes. The model estimates county-specific hospitalization rates by combining age-distributions derived from the US census and age-group specific estimates of the case rates of severe symptoms, critical symptoms, and mortality (together morbidity) derived from the Imperial College COVID-19 Response Team.<br /><br />
                             The model estimates the number of people requiring hospitalization using the initial numbers, the doubling time, and the population-specific rates and then compares these to the numbers of relevant beds derived from data from the American Hospital Association. The default assumptions are that: people requiring hospitalization are hospitalized on the day they test positive (the assumptions will change when non-symptomatic people start being tested); those with severe and critical symptoms spend, respectively, 12 days in acute care and 7 days in intensive care; and 50% of each type of bed is available for COVID-19+ patients. 
                             </blockquote>'),
@@ -306,7 +306,7 @@ server <- function(input, output, session) {
       selectInput(inputId = "county1", #name of input
                   label = "County:", #label displayed in ui
                   choices = sort(unique(data_available)), #calls list of available counties
-                  selected = if (input$state1 == 'California') 'Santa Clara County' else sort(unique(data_available)[2]),
+                  selected = if (input$state1 == 'California') 'Santa Clara County' else sort(unique(data_available)[1]),
                   multiple = TRUE)
     }
   })

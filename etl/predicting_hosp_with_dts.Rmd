@@ -1,0 +1,186 @@
+```{r}
+library(data.table)
+library(ggplot2)
+```
+
+
+# Predicting Future Hospitalizations with Empirical Doubling Times
+
+Idea: Predict future hospitalizations in a county with a few different methods:
+* Exponential extrapolation from current hospitalizations with county empirical case DT
+* Exponential extrapolation from current hospitalizations with state empirical hospitalization DT
+* Exponential extrapolation from current hospitalizations with adjusted case DTs (with daily state hosp / state cases to account for test coverage growing)
+* Some more fancy model. IHME ?
+
+
+### First, Compare empirical hospitalization DTS, case DTs, and adjusted case DTs (with daily state hosp / state cases)
+
+```{r}
+emp_hosp_dts = fread('data/hosp/empirical_dts.csv')
+adj_dts = fread('data/adj_dts.csv')
+
+merged = merge(
+  emp_hosp_dts[,.(state, county, emp_hosp_dt = dubtime)],
+  adj_dts[,.(state, county, emp_case_dt = raw_dt, adj_dt)],
+  by = c('state', 'county')
+)
+
+merged[, emp_case_err := emp_case_dt - emp_hosp_dt]
+merged[, adj_dt_err := adj_dt - emp_hosp_dt]
+
+merged[state %in% c("CA","NY")]
+```
+
+
+```{r}
+merged[order(adj_dt_err)]
+```
+Remove negative doubling times until figure out what's up
+```{r}
+merged = merged[adj_dt > 0 & emp_case_dt > 0 & emp_hosp_dt >0]
+```
+
+
+```{r}
+# Florida
+ggplot(melt(merged[state == "FL",.(county, emp_case_err, adj_dt_err)], id.vars = c('county')),
+       aes(x=value, color=variable)) + geom_density()
+```
+
+RMSE by method
+```{r}
+merged[!is.na(emp_case_err) & !is.na(adj_dt_err),.(
+  emp_case_rmse = sqrt(mean(emp_case_err^2)),
+  adj_case_rmse = sqrt(mean(adj_dt_err^2))
+)]
+```
+
+Mean Error by method
+```{r}
+merged[!is.na(emp_case_err) & !is.na(adj_dt_err),.(
+  emp_case_me = mean(emp_case_err),
+  adj_case_me = mean(adj_dt_err)
+)]
+```
+
+Both underestimate the true DT quite a bit. Probably due to hospitalizations hitting a "peak"?
+
+
+## Now want to try to predict hospitalization time series from April 1 based on county hospitalizations on April 1 and an estimated DT.
+
+DT estimated with daily county cases up to today (April 1), county hospitalizations today, and state-wide cases + hospitalizations up to today.
+
+Find first day of hospitalizations by county
+```{r}
+combined_hosp_ts = fread('data/hosp/combined_hosp_ts.csv')
+
+last_day_by_county = combined_hosp_ts[combined_hosp_ts[, .I[date == max(date)], by = c('state', 'county')]$V1]
+
+# only include counties with at least a week of hospitalizations after April 1
+counties_to_use = unique(last_day_by_county[date >= "2020-04-07", .(state, county)])
+```
+
+Get cases per hosp by day for each state up to April 1
+```{r}
+raw_dt = fread('data/daily-covidtracker-0404.csv')[,.(date, state, positive, hospitalizedCurrently, hospitalizedCumulative)]
+raw_dt = raw_dt[!is.na(hospitalizedCurrently) | !is.na(hospitalizedCumulative)]
+raw_dt[, date := as.Date(as.character(date), format = '%Y %m %d')]
+
+state_data_types = raw_dt[,.(
+  useHospitalizedCurrently = pmax(
+    min(ifelse(!is.na(hospitalizedCumulative), 0, 1)),
+    max(
+    c(ifelse(hospitalizedCumulative == hospitalizedCurrently, 1, 0),0), na.rm = TRUE))
+  ), by = 'state']
+
+raw_dt = merge(raw_dt, state_data_types)
+raw_dt[useHospitalizedCurrently == 1, hospitalizedCumulative := NA]
+raw_dt[,useHospitalizedCurrently := NULL]
+
+state_hosp_ts = raw_dt[positive>0 & pmax(hospitalizedCurrently, hospitalizedCumulative, na.rm = TRUE)>0,.(state, date, 
+                          cases_per_hosp = positive/pmax(hospitalizedCurrently, hospitalizedCumulative, na.rm = TRUE),
+                          state_hosp = pmax(hospitalizedCurrently, hospitalizedCumulative, na.rm = TRUE))]
+
+# Only use data up to April 1
+state_hosp_ts = state_hosp_ts[date <= "2020-04-01" & state %in% c("CA","FL","NY")]
+state_hosp_ts
+```
+
+Join cases per hosp to county case time series up to April 1
+```{r}
+state_abbrev = fread('data/state_abbrev.csv')[,.(State, Code)]
+raw_county_ts = fread("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv")
+raw_county_ts = raw_county_ts[,.(State = state, date = as.Date(date), county, cases)]
+raw_county_ts = merge(raw_county_ts, state_abbrev)
+raw_county_ts = raw_county_ts[,.(state = Code, county_cases = cases, county, date)]
+
+county_ts = raw_county_ts[date <= "2020-04-01" & state %in% c("CA","FL","NY")]
+
+county_state_join = merge(county_ts, state_hosp_ts, by = c('state', 'date'))
+
+county_state_join = merge(county_state_join, counties_to_use, by=c('state','county'))
+
+county_state_join[, adj_cases := county_cases / cases_per_hosp]
+county_state_join
+
+```
+
+Estimate DTs based on county cases, state cases, adjusted county cases
+```{r}
+calculate_raw_and_adjusted_dts = function(dt, s, c) {
+  
+  subset = copy(dt)[state == s & county == c]
+  subset[, `:=`(
+    log_2_state_hosp = log(state_hosp, 2),
+    log_2_county_cases = log(county_cases, 2),
+    log_2_adj_cases = log(adj_cases, 2),
+    day = as.numeric(date - min(date))
+    )]
+  
+  state_coef = lm(log_2_state_hosp ~ day, data = subset)$coefficients[['day']]
+  county_coef = lm(log_2_county_cases ~ day, data = subset)$coefficients[['day']]
+  adj_coef = lm(log_2_adj_cases ~ day, data = subset)$coefficients[['day']]
+  
+  return(data.table(
+    state = s,
+    county = c,
+    state_dt = 1/state_coef,
+    county_dt = 1/county_coef,
+    adj_dt = 1/adj_coef
+  ))
+}
+
+# Test
+calculate_raw_and_adjusted_dts(county_state_join, s = "FL", c = "Santa Rosa")
+```
+
+```{r}
+unique_state_counties = unique(county_state_join[, .(state, county)])
+estimated_dts = rbindlist(lapply(seq(1,nrow(unique_state_counties)),
+       function(x) calculate_raw_and_adjusted_dts(county_state_join, s = unique_state_counties$state[x], c = unique_state_counties$county[x])
+))
+estimated_dts
+```
+
+
+
+Join estimated DTs with time series of cases from April 1 onward
+```{r}
+test_data = merge(estimated_dts, combined_hosp_ts, by = c('state', 'county'))
+test_data = test_data[date>="2020-04-01"]
+test_data[, hosp := pmax(hospitalizedCurrently, hospitalizedCumulative, na.rm=TRUE)]
+test_data[, day := as.numeric(as.Date(date) - as.Date('2020-04-01'))]
+
+initial_hosp = test_data[day == 0, .(state, county, initial_hosp = hosp)]
+
+test_data = merge(test_data, initial_hosp, by = c('state', 'county'))
+test_data = test_data[, .(state, county, day, hosp,
+                          est_hosp_state_dt = initial_hosp * 2^(day/state_dt),
+                          est_hosp_county_dt = initial_hosp * 2^(day/county_dt),
+                          est_hosp_adj_dt = initial_hosp * 2^(day/adj_dt)
+                          )]
+ggplot(
+  melt(test_data[,.(county, day, hosp, est_hosp_state_dt, est_hosp_county_dt, est_hosp_adj_dt)], id.vars = c('county', 'day')),
+  aes(x=day, y=value, color=variable)) + geom_line() + facet_wrap(~county, scales = "free_y")
+```
+
