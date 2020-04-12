@@ -70,11 +70,11 @@ ui <- shinyUI(
                                  numericInput("doubling_time", NULL, value = NA, min = 1, max = 20),
                                  uiOutput("case_scaler"),
                                  hr(),
-                                 sliderInput("proj_start_date", "Projection Start Date", Sys.Date() - 14, min = Sys.Date() - 30, max = Sys.Date()),
+                                 sliderInput("proj_start_date", "Projection Start Date", Sys.Date(), min = as.Date("2020-02-15"), max = Sys.Date()),
                                  sliderInput("num_days", "Number of Days to Model Ahead", 20, min = 1, max = 60),
                                  hr(),
                                  h4("Simulation of Intervention"),
-                                 HTML("To simulate the effects of interventions (e.g. social distancing), select up to three new doubling times and start times (days from today)"),
+                                 HTML("To simulate the effects of interventions (e.g. social distancing), select up to three new doubling times and start times (days from simulation start date)"),
                                  fluidRow(
                                    column(6, tags$b("On Day")),
                                    column(6, tags$b("New DT"))
@@ -744,27 +744,29 @@ server <- function(input, output, session) {
     # cases with intervention
     dt_changes = get_dt_changes()
     
+    # tack on back_vec from hospitalizations function before adding intervention
+    critical_cases = c(critical_back_vec, critical_cases)
+    severe_cases = c(severe_back_vec, severe_cases)
+    
+    # now need to project forwards and backwards, so redefine
+    num_days = num_days + (Sys.Date() - input$proj_start_date)
+    
     for (i in 1:num_days) {
       if (length(dt_changes) > 0) {
-        days <- dt_changes[c(FALSE, TRUE)]
-        if ((i-1) %in% days) {
-          doubling_time <- dt_changes[2*min(which(days == i-1))-1]
+        days_changes_to_dt <- dt_changes[c(FALSE, TRUE)]
+        if ((i-1) %in% days_changes_to_dt) {
+          doubling_time <- dt_changes[2*min(which(days_changes_to_dt == i-1))-1]
         }
       }
-      # cases[i+1] = cases[i]*2^(1/doubling_time)
-      fatal_cases[i+1] = fatal_cases[i]*2^(1/doubling_time)
-      critical_cases[i+1] = critical_cases[i]*2^(1/doubling_time)
-      severe_cases[i+1] = severe_cases[i]*2^(1/doubling_time)
+      # backwards vector has some trickery with LOS so need to deal with that here
+      critical_cases[input$los_critical + i + 1] = critical_cases[input$los_critical + i]*2^(1/doubling_time)
+      severe_cases[input$los_severe + i+1] = severe_cases[input$los_severe + i]*2^(1/doubling_time)
     }
     
-    # no backwards projection here; tack on back_vec from before and subtract accordingly
-    days_before_today = Sys.Date() - input$proj_start_date
     
-    critical_cases = c(critical_back_vec, critical_cases)
-    critical_cases = critical_cases[(input$los_critical + 1):(input$los_critical + days_before_today + num_days + 1)] - critical_cases[1:(days_before_today + num_days + 1)]
-    
-    severe_cases = c(severe_back_vec, severe_cases)
-    severe_cases = severe_cases[(input$los_severe + 1):(input$los_severe + days_before_today + num_days + 1)] - severe_cases[1:(days_before_today + num_days + 1)]
+    # Get rid of the weird LOS trickery
+    critical_cases = critical_cases[(input$los_critical + 1):(input$los_critical + num_days + 1)] - critical_cases[1:(num_days + 1)]
+    severe_cases = severe_cases[(input$los_severe + 1):(input$los_severe + num_days + 1)] - severe_cases[1:(num_days + 1)]
 
     total_population <- naive_estimations$total_population
     validate(
@@ -774,7 +776,6 @@ server <- function(input, output, session) {
     )
   
     return_cases <- list(
-      "fatal" = fatal_cases, 
       "critical" = critical_cases, 
       "severe" = severe_cases,
       "critical_without_intervention" = critical_without_intervention,
@@ -915,8 +916,8 @@ server <- function(input, output, session) {
       
       for (i in days) {
         gp = gp +
-          geom_vline(xintercept = as.numeric(todays_date + i), color = 'grey', linetype = 'dotted') +
-          annotate("text", x = todays_date + i, y = ymax, size = 3, color = 'gray35',
+          geom_vline(xintercept = as.numeric(input$proj_start_date + i), color = 'grey', linetype = 'dotted') +
+          annotate("text", x = input$proj_start_date + i, y = ymax, size = 3, color = 'gray35',
                    label = "Intervention")
       }
     }
