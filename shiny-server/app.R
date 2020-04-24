@@ -25,7 +25,7 @@ library(scales)
 df <- read.csv('data/county_age_severity_rates_v6.csv', stringsAsFactors = FALSE)
 df$County <- gsub('city', 'City', df$County)
 acute_beds_dt = fread('data/acute_byFIPS.csv')
-icu_beds_dt = fread('data/icu_byFIPS.csv')
+icu_beds_dt = fread('data/icu_byFIPs.csv')
 bed_dt = merge(acute_beds_dt, icu_beds_dt, by = "FIPS")
 
 county_case_history <- tryCatch(
@@ -208,8 +208,7 @@ ui <- shinyUI(
                           br(),
                           a(href="https://science.sciencemag.org/content/early/2020/03/13/science.abb3221.long", target = '_blank', "[6] Estimated 86% (95% CI: [82% - 90%]) of infections went undocumented within China prior to travel restrictions"),
                           br(),
-                          br(),
-                          br(),
+                          hr(),
                           h4("Press"),
                           a(href="https://hmpi.org/2020/04/01/stanford-medicine-engineering-partnership-launches-an-interactive-model-to-facilitate-covid-19-response-planning-for-hospital-and-regional-leaders/", "[1] Health Management, Policy and Innovation", target = '_blank'),
                           br(),
@@ -218,7 +217,6 @@ ui <- shinyUI(
                           a(href="https://news.stanford.edu/2020/04/15/covid-19-calculator-tells-hospitals-brace/", target = '_blank', "[3] Stanford News"),
                           br(),
                           a(href="https://www.stanforddaily.com/2020/04/15/researchers-develop-calculator-to-project-resource-shortages-for-policy-makers-hospitals/", target = '_blank', "[4] The Stanford Daily"),
-                          br(),
                           br(),
                           br(),
                           strong("Contact:"),
