@@ -22,18 +22,27 @@ library(reshape2)
 library(usmap)
 library(scales)
 
+# code
+source("code/helpers.R")
+source("code/model_doubling.R")
+source("code/model_SEIR.R")
+
 df <- read.csv('data/county_age_severity_rates_v6.csv', stringsAsFactors = FALSE)
 df$County <- gsub('city', 'City', df$County)
 acute_beds_dt = fread('data/acute_byFIPS.csv')
 icu_beds_dt = fread('data/icu_byFIPs.csv')
 bed_dt = merge(acute_beds_dt, icu_beds_dt, by = "FIPS")
 
+back_date <- 0 # TODO adjust this based on length of stay
+
+# load county-level case data
 county_case_history <- tryCatch(
   {read.csv("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv", stringsAsFactors = FALSE)},
   error = function(cond) {return(NA)})
 if (!is.na(county_case_history)) {
   county_case_history <- county_case_history %>% mutate(fips = as.integer(fips), date = as.Date(date))
-  county_cases <- left_join(county_case_history %>% group_by(fips) %>% summarize(date = max(date)), county_case_history) %>% 
+  # TODO consider starting with data (length of stay) days ago, so that don't have to backcalculate
+  county_cases <- left_join(county_case_history %>% group_by(fips) %>% summarize(date = max(date) - back_date), county_case_history) %>% 
     rename(FIPS = fips, Cases = cases) %>% select(FIPS, Cases)
   df <- left_join(df, county_cases, by = 'FIPS')
 }
@@ -63,7 +72,7 @@ ui <- shinyUI(
                                  uiOutput("num_cases"),
                                  hr(),
                                  HTML('Enter the <b>Doubling Time</b>, the number of days until the cumulative number of hospitalization/cases doubles.<br/><a href="https://www.nytimes.com/interactive/2020/03/21/upshot/coronavirus-deaths-by-country.html?action=click&module=Top%20Stories&pgtype=Homepage" target="_blank">(General range: 2-7 in the US)</a>'),
-                                 numericInput("doubling_time", NULL, value = NA, min = 1, max = 20),
+                                 numericInput("doubling_time", NULL, value = NA, min = 1, max = 80),
                                  uiOutput("case_scaler"),
                                  hr(),
                                  sliderInput("num_days", "Number of Days to Model Ahead", 20, min = 1, max = 60),
@@ -469,38 +478,23 @@ server <- function(input, output, session) {
   })
 
   get_naive_estimations <- reactive({
+    # TODO rename this? this is initial conditions
     
+    # load population data
     county_df <- get_county_df()
     
-    hospitalizations_input_instead_of_cases <- (input$input_radio == 2)
-    doubling_time <- input$doubling_time
+    # set up inputs
+    inputs <- list(
+      population_df=county_df,
+      hospitalizations_input_instead_of_cases=(input$input_radio==2),
+      num_cases=input$num_cases,
+      case_scaler=input$case_scaler
+    )
     
-    combined_counties_severity_rates <- county_df %>% 
-      summarise(
-        total_population = sum(population_in_age_group),
-        wtd_case_fatality_rate = weighted.mean(case_fatality_rate, population_in_age_group),
-        wtd_critical_case_rate = weighted.mean(critical_case_rate, population_in_age_group),
-        wtd_severe_cases_rate = weighted.mean(severe_cases_rate, population_in_age_group),
-        wtd_hosp_rate = weighted.mean(severe_cases_rate + critical_case_rate, population_in_age_group)
-      )
+    # get initial conditions and return
+    model_inputs <- get_initial_conditions(inputs)
+    return(model_inputs)
     
-    if(!hospitalizations_input_instead_of_cases) {
-      # Scale total cases if confirmed cases are given instead of hospitalizations
-      num_cases <- input$num_cases * input$case_scaler
-    } else {
-      validate(
-        need(input$num_cases > 0, "To run the model enter a non-zero number of hospitalizations.")
-      )
-      # Infer total cases from demographics if hospitalizations are given
-      num_cases <- input$num_cases / combined_counties_severity_rates$wtd_hosp_rate[1]
-    }
-    
-    return(list(
-      total_population = combined_counties_severity_rates$total_population[1],
-      estimated_fatal_cases = num_cases * combined_counties_severity_rates$wtd_case_fatality_rate[1],
-      estimated_critical_cases = num_cases * combined_counties_severity_rates$wtd_critical_case_rate[1],
-      estimated_severe_cases = num_cases * combined_counties_severity_rates$wtd_severe_cases_rate[1]
-    ))
   })
   
   output$text1 <- renderText({
@@ -667,6 +661,9 @@ server <- function(input, output, session) {
   }, sanitize.text.function=identity, width = "100%")
   
   get_dt_changes <- reactive({
+    # from the user inputs, extract doubling_time changes
+    # this vector is PAIRED, such that odd indices are doubling_time and even are the day
+    # on which it changed
     
     num_days = input$num_days
     valid_pair <- function(dt, day) { 
@@ -691,109 +688,40 @@ server <- function(input, output, session) {
     return(dt_changes)
   })
   
-  # Function to get hospitalizations from cumulative cases, with projection backwards from current cases to prevent jump at day LOS
-  get_hospitalizations = function(cumulative_cases, los, doubling_time) {
-      
-      days_to_hospitalization = 0
-      
-      # project back los + days to hospitalization days
-      back_vec = c(rep(NA, los + days_to_hospitalization), cumulative_cases)
-      for (i in (los + days_to_hospitalization):1) {
-          back_vec[i] = back_vec[i + 1]/2^(1/doubling_time)
-      }
-      
-      # get indices of original vectors
-      original_start = los + days_to_hospitalization + 1
-      original_end = los + days_to_hospitalization + length(cumulative_cases)
-      stopifnot(all.equal(back_vec[original_start:original_end], cumulative_cases))
-      stopifnot(length(back_vec) == original_end)
-      
-      # get indices of vectors shifted by days to hospitalization
-      shifted_start = original_start - days_to_hospitalization
-      shifted_end = original_end - days_to_hospitalization
-      
-      # subtract off for length of stay
-      return_vec = back_vec[shifted_start:shifted_end] - back_vec[(shifted_start - los):(shifted_end - los)]
-      
-      return(list(result = return_vec, back_vec = back_vec[1:los]))
-  }
-  
   get_case_numbers <- reactive({
+    
+    # to run need non-zero cases
+    validate(
+      need(input$num_cases != 0, "To run the model enter a non-zero number of cases.")
+    )
+    
+    # needs county data
     req(input$county1)
     
+    # initial conditions and interventions
     naive_estimations <- get_naive_estimations()
-    
-    num_days <- input$num_days
-    # cases <- rep(input$num_cases * input$case_scaler, num_days+1)
-    fatal_cases <- rep(naive_estimations$estimated_fatal_cases, num_days+1)
-    critical_cases <- rep(naive_estimations$estimated_critical_cases, num_days+1)
-    severe_cases <- rep(naive_estimations$estimated_severe_cases, num_days+1)
-    
-    doubling_time <- input$doubling_time
-    
-    # cases without intervention
-    critical_without_intervention = critical_cases
-    severe_without_intervention = severe_cases
-    for (i in 1:num_days) {
-      critical_without_intervention[i+1] = critical_without_intervention[i]*2^(1/doubling_time)
-      severe_without_intervention[i+1] = severe_without_intervention[i]*2^(1/doubling_time)
-    }
-    
-    # number hospitalized at any one time (without intervention)
-    #critical_without_intervention = critical_without_intervention - c(rep(0, input$los_critical), critical_without_intervention)[1:length(critical_without_intervention)]
-    critical_hospitalizations_obj = get_hospitalizations(critical_without_intervention, input$los_critical, doubling_time)
-    critical_without_intervention = critical_hospitalizations_obj$result
-    #severe_without_intervention = severe_without_intervention - c(rep(0, input$los_severe), severe_without_intervention)[1:length(severe_without_intervention)]
-    severe_hospitalizations_obj = get_hospitalizations(severe_without_intervention, input$los_severe, doubling_time)
-    severe_without_intervention = severe_hospitalizations_obj$result
-    
-    # store the backwards projected numbers to append onto the intervened vectors
-    critical_back_vec = critical_hospitalizations_obj$back_vec
-    severe_back_vec = severe_hospitalizations_obj$back_vec
-    
-    # cases with intervention
     dt_changes = get_dt_changes()
     
-    for (i in 1:num_days) {
-      if (length(dt_changes) > 0) {
-        days <- dt_changes[c(FALSE, TRUE)]
-        if ((i-1) %in% days) {
-          doubling_time <- dt_changes[2*min(which(days == i-1))-1]
-        }
-      }
-      # cases[i+1] = cases[i]*2^(1/doubling_time)
-      fatal_cases[i+1] = fatal_cases[i]*2^(1/doubling_time)
-      critical_cases[i+1] = critical_cases[i]*2^(1/doubling_time)
-      severe_cases[i+1] = severe_cases[i]*2^(1/doubling_time)
-    }
-    
-    # no backwards projection here; tack on back_vec from before and subtract accordingly
-    critical_cases = c(critical_back_vec, critical_cases)
-    critical_cases = critical_cases[(input$los_critical + 1):(input$los_critical + num_days + 1)] - critical_cases[1:(num_days + 1)]
-    
-    severe_cases = c(severe_back_vec, severe_cases)
-    severe_cases = severe_cases[(input$los_severe + 1):(input$los_severe + num_days + 1)] - severe_cases[1:(num_days + 1)]
-    
-    # number hospitalized at any one time (with intervention)
-    # critical_cases = critical_cases - c(rep(0, input$los_critical), critical_cases)[1:length(critical_cases)]
-    # critical_cases = get_hospitalizations(critical_cases, input$los_critical, doubling_time)$result
-    # severe_cases = severe_cases - c(rep(0, input$los_severe), severe_cases)[1:length(severe_cases)]
-    # severe_cases = get_hospitalizations(severe_cases, input$los_severe, doubling_time)$result
-    
-    total_population <- naive_estimations$total_population
-    validate(
-      need(input$num_cases != 0, "To run the model enter a non-zero number of cases."),
-      need((severe_cases[num_days+1] + critical_cases[num_days + 1]) < 0.2*total_population, 
-           "Current data are insufficient to reliably model infection rates this high. The model will be updated as more data become available. To proceed, reduce the initial number; or reduce the days to model; or increase the doubling time.")
+    # join all inputs, plug into model
+    model_inputs <- list(
+      total_population=naive_estimations$total_population,
+      num_days=input$num_days,
+      doubling_time=input$doubling_time,
+      inital_fatal=naive_estimations$estimated_fatal_cases,
+      initial_acute=naive_estimations$estimated_severe_cases,
+      los_acute=input$los_severe,
+      initial_icu=naive_estimations$estimated_critical_cases,
+      los_icu=input$los_critical,
+      case_fatality_rate=naive_estimations$estimated_case_fatality_rate,
+      dt_changes=dt_changes
     )
-  
-    return_cases <- list(
-      "fatal" = fatal_cases, 
-      "critical" = critical_cases, 
-      "severe" = severe_cases,
-      "critical_without_intervention" = critical_without_intervention,
-      "severe_without_intervention" = severe_without_intervention)
-    return(return_cases)
+    
+    # run modelling
+    #predictions <- predict_doubling(model_inputs)
+    predictions <- predict_SEIR(model_inputs)
+    
+    # return predictions
+    return(predictions)
   })
   
   # Function to get data table with time series of cases (used for both graphical and tabular representation)
@@ -807,7 +735,7 @@ server <- function(input, output, session) {
     day_list <- c(0:num_days)
     
     chart_data = data.table(
-      Date = Sys.Date() + day_list,
+      Date = Sys.Date() - back_date + day_list,
       `Estimated<br />Acute Hospitalizations<br />(without intervention)` = round(case_numbers$severe_without_intervention),
       `Estimated<br />ICU Hospitalizations<br />(without intervention)` = round(case_numbers$critical_without_intervention)
     )
@@ -874,8 +802,8 @@ server <- function(input, output, session) {
       
       for (i in days) {
         gp = gp +
-          geom_vline(xintercept = as.numeric(Sys.Date() + i), color = 'grey', linetype = 'dotted') +
-          annotate("text", x = Sys.Date() + i, y = ymax, size = 3, color = 'gray35',
+          geom_vline(xintercept = as.numeric(Sys.Date() - back_date + i), color = 'grey', linetype = 'dotted') +
+          annotate("text", x = Sys.Date() - back_date + i, y = ymax, size = 3, color = 'gray35',
                    label = "Intervention")
       }
     }
@@ -889,13 +817,13 @@ server <- function(input, output, session) {
     if(is.finite(num_acute_beds_available)) {
       gp = gp +
         geom_hline(yintercept = num_acute_beds_available, linetype = "dashed", color = 'grey') + 
-        annotate("text", x = Sys.Date() + 0.75*num_days, y = num_acute_beds_available*1.02, label = "Acute Beds for COVID Patients", vjust=1, hjust=0, size = 3, color = 'gray35')
+        annotate("text", x = Sys.Date() - back_date + 0.75*num_days, y = num_acute_beds_available*1.02, label = "Acute Beds for COVID Patients", vjust=1, hjust=0, size = 3, color = 'gray35')
     }
     
     if(is.finite(num_icu_beds_available)) {
       gp = gp +
         geom_hline(yintercept = num_icu_beds_available, linetype = "dashed", color = 'grey') + 
-        annotate("text", x = Sys.Date() + 0.75*num_days, y = num_icu_beds_available*1.02, label = "ICU Beds for COVID Patients", vjust=1, hjust=0, size = 3, color = 'gray35')
+        annotate("text", x = Sys.Date() - back_date + 0.75*num_days, y = num_icu_beds_available*1.02, label = "ICU Beds for COVID Patients", vjust=1, hjust=0, size = 3, color = 'gray35')
     }
     
     ggplotly(gp, tooltip = 'text', height = 640) %>% 
